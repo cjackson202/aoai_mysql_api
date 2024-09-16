@@ -1,0 +1,6 @@
+mysql-connector-python
+tiktoken 
+python-dotenv
+openai
+fastapi 
+uvicorn
