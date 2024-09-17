@@ -1,5 +1,12 @@
 '''
-To run this api, use: uvicorn norag_mysql_api:app --reload
+Only compatibale with the following Azure OpenAI components: 
+
+- Models: gpt-4o (2024-05-13 and 2024-08-06), gpt-4o-mini (2024-07-18)
+- Regions: East US 2
+
+To run this api use: uvicorn norag_mysql_api:app --reload
+
+Last update: 9/17/2024
 '''
 
 from fastapi import FastAPI, HTTPException  
