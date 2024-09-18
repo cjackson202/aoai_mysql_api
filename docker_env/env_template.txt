@@ -1,0 +1,8 @@
+OPENAI_API_BASE=
+OPENAI_API_VERSION=
+OPENAI_API_KEY=
+azure_mysql_password=
+azure_mysql_host=
+azure_mysql_user=
+azure_mysql_schema=
+OPENAI_GPT_MODEL=

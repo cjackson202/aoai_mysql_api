@@ -20,9 +20,16 @@ Use the MySQl Installer to download MySQL Workbench. MySQL Workbench is a unifie
 
 4. [Create aoai_api Schema in MySQL Server](aoai_api.sql) : To create the scehma for the aoai api database, please follow these steps:
 
-    1. In the top lefr menu bar, select **File**. 
+    `aoai_api.sql` vs. `aoai_api_v2.sql`:
+    - **aoai_api.sql** executes the sql schema without the capturing of the API url and exact timestamp of prompt asking. 
+    Useful if you only are working with one API in the sql server and are not looking for different timestamps between prompt asking and answering.
+    - **aoai_api_v2.sql** executes the sql schema with capturing of the API url and exact timestamp of prompt asking. 
+    Useful if you are working with multiple API's in the sql server and are looking for exact timestamps for prompt asking and the promp answer 
+        - EX: ask prompt at 2024-09-18 15:32:12 and LLM api responds at 2024-09-18 15:32:16. ***Notice there is a 4 sec gap in between***.
+
+    1. In the top left menu bar, select **File**. 
     2. From the dropdown menu, select **Open SQL Script**.
-    3. Search for and select the `architecture_setup/aoai_api.sql` script.
+    3. Search for and select one of the sql scripts found in `architecture_setup/...`.
     4. Click the lighting bolt icon, without cursor icon, to execute the script. 
     5. At this point, the schema `aoai_api` should be created in your server. 
 

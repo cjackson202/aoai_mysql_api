@@ -4,152 +4,230 @@ Only compatibale with the following Azure OpenAI components:
 - Models: gpt-4o (2024-05-13 and 2024-08-06), gpt-4o-mini (2024-07-18)
 - Regions: East US 2
 
+UPDATES:
+    -   Modified timestamp in MySQL for the user prompt time asked. This update
+        allows you to see the time difference between asking prompt and receiving answer. 
+        'prompt' table, column 'timestamp' updated as varchar type, accepting the datetime as a string in UTC format. 
+         For example on implementing this change, please see 'call_norag_api.py' (must rerun sql script v2 to create schema with updates).
+
+    -   Added 'python_api' to mysql schema. This table captures the api used to insert the data to mysql (eventually will have rag and norag api's).
+        Insert statement for this table added, accepting the api url as string to go into the table column 'api_name'.
+        For example on implementing this change, please see 'call_norag_api.py' (must rerun sql script v2 to create schema with updates).
+
+
 To run this api use: uvicorn norag_mysql_api:app --reload
 
-Last update: 9/17/2024
+Last update: 9/18/2024
 '''
 
+
 from fastapi import FastAPI, HTTPException  
-from pydantic import BaseModel  
+from pydantic import BaseModel, Field 
 import mysql.connector  
 import os  
 from dotenv import load_dotenv  
 import re  
-import tiktoken
-
-load_dotenv()
-
-app = FastAPI()
-
+import tiktoken  
+  
+load_dotenv()  
+app = FastAPI()  
+  
 class RequestData(BaseModel):  
-    system_prompt: str  
-    user_prompt: str  
-    response: str 
-    deployment_model: str 
-    name_model: str  
-    version_model: str  
-    region: str  
-    project: str  
-
-def aoai_metadata(system_prompt, user_prompt, response, name_model, version_model, region):
-    def token_amount(text, name_model):
-        if name_model == 'gpt-4o' or "gpt-4o-" or 'gpt-4o-mini':
-            encoding = tiktoken.get_encoding('o200k_base')
-            return len(encoding.encode(text))
-        else:
-            encoding = tiktoken.get_encoding('cl100k_base')
-            return len(encoding.encode(text))
-    prompt_token_count = token_amount(text=system_prompt, name_model=name_model) + token_amount(text=user_prompt, name_model=name_model) + token_amount(response, name_model=name_model) 
-    response_token_count = token_amount(text=response, name_model=name_model)
-    if region == 'East US 2':
-        # Pricing gpt4o - 2024-05-13 
-        if name_model == 'gpt-4o' and version_model == '2024-05-13':
-            prompt_cost = round((prompt_token_count / 1000) * .005, 5) 
-            completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .015, 5)
-        # Pricing gpt-4o-mini - 2024-07-18
-        elif name_model == 'gpt-4o-mini' and version_model == '2024-07-18':
-            prompt_cost = round((prompt_token_count / 1000) * .000165, 5) 
-            completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .00066, 5)
-        # Pricing gpt4o - 2024-08-06
-        elif name_model == 'gpt-4o' or "gpt-4o-" and version_model == '2024-08-06':
-            prompt_cost = round((prompt_token_count / 1000) * .00275, 5) 
-            completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .011, 5)
+    embeddings: bool = Field(default=False)  
+    embeddings_model: str = Field(default=None)  
+    embeddings_model_deployment: str = Field(default=None)  
+    embeddings_model_version: str = Field(default=None)  
+    embeddings_task: str = Field(default=None)  
+    embeddings_text: str = Field(default=None)  
+    k_documents: str = Field(default=None)  
+    system_prompt: str  = Field(default="")  
+    user_prompt: str  = Field(default="")  
+    time_asked: str  = Field(default="")  
+    response: str  = Field(default="")  
+    deployment_model: str = Field(default="")  
+    name_model: str = Field(default="")  
+    version_model: str = Field(default="")    
+    region: str = Field(default="")    
+    project: str = Field(default="")    
+    api_name: str = Field(default="")   
+  
+def aoai_metadata(system_prompt, user_prompt, response, name_model, version_model, region, embeddings_model, embeddings_model_version, embeddings_task, embeddings_text, embeddings, k_documents):  
+    if embeddings == False:  
+        def token_amount(text, name_model):  
+            if name_model in ['gpt-4o', 'gpt-4o-', 'gpt-4o-mini']:  
+                encoding = tiktoken.get_encoding('o200k_base')  
+                return len(encoding.encode(text))  
+            return 0  
+        prompt_token_count = token_amount(text=system_prompt, name_model=name_model) + token_amount(text=user_prompt, name_model=name_model)  
+        response_token_count = token_amount(text=response, name_model=name_model)  
+  
+        if region == 'East US 2':  
+            # Pricing gpt-4o - 2024-05-13  
+            if name_model == 'gpt-4o' and version_model == '2024-05-13':  
+                prompt_cost = round((prompt_token_count / 1000) * .005, 5)  
+                completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .015, 5)  
+            # Pricing gpt-4o-mini - 2024-07-18  
+            elif name_model == 'gpt-4o-mini' and version_model == '2024-07-18':  
+                prompt_cost = round((prompt_token_count / 1000) * .000165, 5)  
+                completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .00066, 5)  
+            # Pricing gpt-4o - 2024-08-06  
+            elif name_model == 'gpt-4o' and version_model == '2024-08-06':  
+                prompt_cost = round((prompt_token_count / 1000) * .00275, 5)  
+                completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .011, 5)  
+            else:  
+                raise HTTPException(status_code=400, detail="Invalid model or version.")  
+            return prompt_token_count, prompt_cost, response_token_count, completion_cost  
         else:  
-            raise HTTPException(status_code=400, detail="Invalid model or version.")  
-        return prompt_token_count, prompt_cost, response_token_count, completion_cost
-    else:
-        raise HTTPException(status_code=400, detail="East US 2 region only available.")  
-
-def sql_connect(system_prompt, user_prompt, prompt_cost, response, completion_cost, deployment_model, prompt_token_count, response_token_count, project):
-    try:
+            raise HTTPException(status_code=400, detail="East US 2 region only available.")  
+    elif embeddings == True:  
+        def token_amount_gpt(text, name_model):  
+            if name_model in ['gpt-4o', 'gpt-4o-', 'gpt-4o-mini']:  
+                encoding = tiktoken.get_encoding('o200k_base')  
+                return len(encoding.encode(text))  
+        def token_amount_ada(text, embedding_model):  
+            if embedding_model == 'text-embedding-ada-002':  
+                    encoding = tiktoken.get_encoding('cl100k_base')  
+                    return len(encoding.encode(text))  
+        # Embeddings task is 'index'  
+        if embeddings_task == 'indexing':  
+            prompt_token_count = token_amount_ada(text=embeddings_text, embedding_model=embeddings_model)  
+            response_token_count = None  
+            if region == 'East US 2':  
+                if embeddings_model == 'text-embedding-ada-002' and embeddings_model_version == '2':  
+                    prompt_cost = round((prompt_token_count / 1000) * .0001, 5)  
+                    completion_cost = None  
+                return prompt_token_count, prompt_cost, response_token_count, completion_cost  
+        # Embeddings task is 'query'  
+        elif embeddings_task == 'query':  
+            prompt_token_count = (  
+                token_amount_gpt(text=user_prompt, name_model=name_model) +  
+                token_amount_gpt(text=system_prompt, name_model=name_model) +  
+                token_amount_gpt(text=k_documents, name_model=name_model)  
+            )  
+            user_prompt_token_count_embeddings = token_amount_ada(text=user_prompt, embedding_model=embeddings_model)  
+            response_token_count = token_amount_gpt(text=response, name_model=name_model)  
+            if region == 'East US 2':  
+                if embeddings_model == 'text-embedding-ada-002' and embeddings_model_version == '2' and name_model == 'gpt-4o' and version_model == '2024-05-13':  
+                    prompt_cost = round((prompt_token_count / 1000) * .005, 5) + round((user_prompt_token_count_embeddings / 1000) * .0001, 5)  
+                    completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .015, 5)  
+                else:  
+                    raise HTTPException(status_code=400, detail="Invalid model or version.")  
+                return prompt_token_count, prompt_cost, response_token_count, completion_cost  
+            else:  
+                raise HTTPException(status_code=400, detail="East US 2 region only available.")  
+  
+def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, deployment_model, prompt_token_count, 
+                response_token_count, project, api_name):  
+    try:  
         # Establish a connection to the MySQL server  
         mydb = mysql.connector.connect(  
-        host=os.getenv("azure_mysql_host"),  
-        user=os.getenv("azure_mysql_user"),  
-        password=os.getenv("azure_mysql_password"),  
-        database=os.getenv("azure_mysql_schema")  
+            host=os.getenv("azure_mysql_host"),  
+            user=os.getenv("azure_mysql_user"),  
+            password=os.getenv("azure_mysql_password"),  
+            database=os.getenv("azure_mysql_schema")  
         )  
-        
+  
         # Define a cursor object  
         mycursor = mydb.cursor()  
-
+  
         # Check if system_prompt already exists in the aoaisystm table  
         mycursor.execute("SELECT system_id FROM aoaisystem WHERE system_prompt = %s", (system_prompt,))  
         result = mycursor.fetchone()  
-    
+  
         # If the system_prompt exists, use the corresponding system_id, otherwise create a new one  
         if result:  
             system_id = result[0]  
         else:  
-            print("Warning: System_id not found for this prompt. Creating new id and adding prompt!")
+            # Insert a new system_prompt into the aoaisystm table  
+            print("Warning: System_id not found for this prompt. Creating new id and adding prompt!")  
             mycursor.execute("SELECT MAX(prompt_number) FROM aoaisystem")  
             result = mycursor.fetchone()  
             prompt_number = result[0] if result[0] else 0  
-            # Increment the latest prompt_number by 1  
-            prompt_number = prompt_number + 1  
-            # Insert a new system_prompt into the aoaisystm table and get the new system_id  
-            sql = "INSERT INTO aoaisystem (system_prompt, system_proj, prompt_number) VALUES (%s, %s, %s)"
-            val =  (system_prompt, project, prompt_number)
-            mycursor.execute(sql, val)
-            system_id = mycursor.lastrowid 
-        # Insert into prompt table with connection to system prompt
-        sql = "INSERT INTO prompt (system_id, user_prompt, tokens, price) VALUES (%s, %s, %s, %s)"  
-        val = (system_id, user_prompt, prompt_token_count, prompt_cost)  
+            prompt_number = prompt_number + 1  # Increment the latest prompt_number by 1  
+            sql = "INSERT INTO aoaisystem (system_prompt, system_proj, prompt_number) VALUES (%s, %s, %s)"  
+            val = (system_prompt, project, prompt_number)  
+            mycursor.execute(sql, val)  
+            system_id = mycursor.lastrowid  # Get the ID of the last inserted row  
+  
+        # Insert into prompt table with connection to system prompt  
+        sql = "INSERT INTO prompt (system_id, user_prompt, tokens, price, timestamp) VALUES (%s, %s, %s, %s, %s)"  
+        val = (system_id, user_prompt, prompt_token_count, prompt_cost, time_asked)  
         mycursor.execute(sql, val)  
-        # Get the ID of the last inserted row  
         prompt_id = mycursor.lastrowid  
-        
+  
+        # Check if api_name already exists in the python_api table  
+        mycursor.execute("SELECT api_id FROM python_api WHERE api_name = %s", (api_name,))  
+        result = mycursor.fetchone()  
+        if result:  
+            api_id = result[0]  
+        else:  
+            # Insert API Name into python_api table (since there will be an API for No Rag and Rag)  
+            sql = "INSERT INTO python_api (api_name) VALUES (%s)"  
+            val = (api_name,)  
+            mycursor.execute(sql, val)  
+            api_id = mycursor.lastrowid  
+  
         mycursor.execute("SELECT model_id FROM models WHERE model = %s", (deployment_model,))  
         result = mycursor.fetchone()  
-    
+  
         # If the model exists, use the corresponding model_id, otherwise create a new one  
         if result:  
             model_id = result[0]  
         else:  
-            print("Warning: Model_id not found for this model. Creating new id and adding model!")
+            print("Warning: Model_id not found for this model. Creating new id and adding model!")  
             mycursor.execute("SELECT MAX(model_id) FROM models")  
             result = mycursor.fetchone()  
             model_id = result[0] if result[0] else 0  
             # Increment the latest model_id by 1  
-            model_id = model_id + 1 
-
-            # Define regex patterns for models
+            model_id = model_id + 1  
+  
+            # Define regex patterns for models  
             ada_pattern = re.compile(r'(?i)ada')  # Case insensitive match for 'ada' anywhere in the string  
-            gpt4o_pattern = re.compile(r'(?i)gpt-?4o')  # Case insensitive match for 'gpt-4o' or 'gpt4o' anywhere in the string
-
-
-            if ada_pattern.search(deployment_model):
-                # Insert a new system_prompt into the aoaisystm table and get the new system_id  
-                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"
-                val =  (deployment_model, None, 0.000100, 'cl100k_base')
-                mycursor.execute(sql, val)
-                model_id = mycursor.lastrowid 
-            elif  gpt4o_pattern.search(deployment_model): 
-                # Insert a new system_prompt into the aoaisystm table and get the new system_id  
-                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"
-                val =  (deployment_model, .005000, 0.015000, 'o200k_base')
-                mycursor.execute(sql, val)
-                model_id = mycursor.lastrowid 
-            else:
-                # Insert a new system_prompt into the aoaisystm table and get the new system_id  
-                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"
-                val =  (deployment_model, None, None, None)
-                mycursor.execute(sql, val)
-                model_id = mycursor.lastrowid 
-        
-        # Insert into chat_completions table based on model used 
-        sql = "INSERT INTO chat_completions (model_id, prompt_id, chat_completion, tokens, price) VALUES (%s, %s, %s, %s, %s)"  
-        val = (model_id, prompt_id, response, response_token_count, completion_cost)  
+            gpt4o_pattern = re.compile(r'(?i)gpt-?4o')  # Case insensitive match for 'gpt-4o' or 'gpt4o' anywhere in the string  
+  
+            if ada_pattern.search(deployment_model):  
+                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
+                val = (deployment_model, None, 0.000100, 'cl100k_base')  
+                mycursor.execute(sql, val)  
+                model_id = mycursor.lastrowid  
+            elif gpt4o_pattern.search(deployment_model):  
+                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
+                val = (deployment_model, .005000, 0.015000, 'o200k_base')  
+                mycursor.execute(sql, val)  
+                model_id = mycursor.lastrowid  
+            else:  
+                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
+                val = (deployment_model, None, None, None)  
+                mycursor.execute(sql, val)  
+                model_id = mycursor.lastrowid  
+  
+        # Insert into chat_completions table based on model used  
+        sql = "INSERT INTO chat_completions (model_id, prompt_id, api_id, chat_completion, tokens, price) VALUES (%s, %s, %s, %s, %s, %s)"  
+        val = (model_id, prompt_id, api_id, response, response_token_count, completion_cost)  
         mycursor.execute(sql, val)  
-        
+  
         # Save the changes  
         mydb.commit()  
-        return {"message": f"{mycursor.rowcount} record(s) inserted into aoai database."} 
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to access MySQL DB with error: {e}")
-
-@app.post("/process")  
+        return {"message": f"{mycursor.rowcount} record(s) inserted into {os.getenv('azure_mysql_schema')} database."}  
+    except Exception as e:  
+        raise HTTPException(status_code=500, detail=f"Failed to access MySQL DB with error: {e}")  
+  
+def main(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, deployment_model, prompt_token_count, response_token_count, project, api_name, embeddings, embeddings_task, embeddings_model_deployment, embeddings_text):  
+    if embeddings == True and embeddings_task == 'index':  
+        return sql_connect(system_prompt="NaN", user_prompt=embeddings_text, time_asked=time_asked, prompt_cost=prompt_cost, response=None, 
+                           completion_cost=completion_cost, deployment_model=embeddings_model_deployment, prompt_token_count=prompt_token_count, 
+                           response_token_count=response_token_count, project=project, api_name=api_name)  
+    elif embeddings == True and embeddings_task == 'query':  
+        return sql_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, 
+                           prompt_cost=prompt_cost, response=response, completion_cost=completion_cost, 
+                           deployment_model=f"{embeddings_model_deployment} & {deployment_model}", prompt_token_count=prompt_token_count, 
+                           response_token_count=response_token_count, project=project, api_name=api_name)  
+    elif embeddings == False:  
+        return sql_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, 
+                           prompt_cost=prompt_cost, response=response, completion_cost=completion_cost, deployment_model=deployment_model, 
+                           prompt_token_count=prompt_token_count, response_token_count=response_token_count, project=project, api_name=api_name)  
+  
+@app.post("/norag_api_mysql")  
 def process_data(data: RequestData):  
     prompt_token_count, prompt_cost, response_token_count, completion_cost = aoai_metadata(  
         system_prompt=data.system_prompt,  
@@ -157,17 +235,31 @@ def process_data(data: RequestData):
         response=data.response,  
         name_model=data.name_model,  
         version_model=data.version_model,  
-        region=data.region  
+        region=data.region,  
+        embeddings_model=data.embeddings_model,  
+        embeddings_model_version=data.embeddings_model_version,  
+        embeddings_task=data.embeddings_task,  
+        embeddings_text=data.embeddings_text,  
+        embeddings=data.embeddings,  
+        k_documents=data.k_documents  
     )  
-    result = sql_connect(  
+  
+    result = main(  
         system_prompt=data.system_prompt,  
         user_prompt=data.user_prompt,  
+        time_asked=data.time_asked,  
         prompt_cost=prompt_cost,  
         response=data.response,  
         completion_cost=completion_cost,  
         deployment_model=data.deployment_model,  
         prompt_token_count=prompt_token_count,  
         response_token_count=response_token_count,  
-        project=data.project  
+        project=data.project,  
+        api_name=data.api_name,  
+        embeddings=data.embeddings,  
+        embeddings_task=data.embeddings_task,  
+        embeddings_model_deployment=data.embeddings_model_deployment,  
+        embeddings_text=data.embeddings_text  
     )  
+  
     return result  

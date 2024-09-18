@@ -1,4 +1,7 @@
 .venv
 .env
 __pychache__/
-api's/No_Rag_API/__pychache__
+api/No_Rag_API/__pychache__
+test_data/
+call_rag_api.py
+p3.py

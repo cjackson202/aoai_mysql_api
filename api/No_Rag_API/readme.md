@@ -43,25 +43,29 @@ This sub-directory contains two main Python scripts:
     python call_norag_api.py  
     ```  
     
-    Note - The following headers must be passed to the API's GET:
+    Note - The following data should be passed as payload to the API:
     ```python 
         data = {  
-        "system_prompt": "", # System prompt given to the AOAI model.
+            "system_prompt": system_prompt,  # System prompt given to the AOAI model.
 
-        "user_prompt": "", # User prompt in which the end-user asks the model. 
+            "user_prompt": user_prompt,  # User prompt in which the end-user asks the model. 
 
-        "response": "", # Model's answer to the user prompt
+            "time_asked": time_asked, # Time in which the user prompt was asked.
 
-        "deployment_model": "", # Input your model's deployment name here
+            "response": response,  # Model's answer to the user prompt
 
-        "name_model": "", # Input you model here
+            "deployment_model": deployment_name, # Input your model's deployment name here
 
-        "version_model": "", # Input your model version here. NOT API VERSION.
+            "name_model": "gpt-4o",  # Input you model here
 
-        "region": "",  # Input your AOAI resource region here
-        
-        "project": ""  # Input your project name here. 
-    }  
+            "version_model": "2024-05-13",  # Input your model version here. NOT API VERSION.
+
+            "region": "East US 2",  # Input your AOAI resource region here
+
+            "project": "Disney Character (API Test)",  # Input your project name here. Following the system prompt for this test currently :)
+            
+            "api_name": url # Input the url of the API used. 
+        }  
     ```
   
 ## Modifying Metadata Capturing  
