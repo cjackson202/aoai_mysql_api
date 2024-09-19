@@ -1,14 +1,20 @@
-mysql-connector-python
+openai
 tiktoken 
 python-dotenv
-openai
-fastapi 
-uvicorn
 langchain==0.2.11
 langchain-community==0.2.10
 langchain-experimental==0.0.63
 langchain-openai== 0.1.20
-azure-search-documents 
-azure-identity
+mysql-connector-python
+python-docx  
+docx2txt
+azure-search-documents==11.5.1
+azure-identity==1.17.1
+pypdf2
+matplotlib
+scipy
+seaborn
+altair
 unstructured
-libmagic
+fastapi 
+uvicorn

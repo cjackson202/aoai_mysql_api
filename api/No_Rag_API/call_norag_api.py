@@ -1,3 +1,10 @@
+'''
+This script is designed to test the MySQL API using eligible GPT models specifically for chat scenarios 
+where Retrieval-Augmented Generation (RAG) is not needed.
+
+Updated 9/19/24
+'''
+
 import requests  
 import json  
 import os
