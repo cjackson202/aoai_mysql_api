@@ -1,18 +1,12 @@
 '''
-Only compatibale with the following Azure OpenAI components: 
-
-- Models: gpt-4o (2024-05-13 and 2024-08-06), gpt-4o-mini (2024-07-18)
-- Regions: East US 2
-
 UPDATES:
-    -   API now works for RAG approaches: indexing and querying 
-        - To test indexing, please see call_rag_index_api.py
-        - To test querying, please see call_rag_query_api.py
+    - Added East US to compatiable regions.
+    - Added GPT-4-Turbo to compatiable models. 
 
 
 To run this api use: uvicorn mysql_api:app --reload
 
-Last update: 9/19/2024
+Last update: 9/20/2024
 '''
 
 
@@ -45,14 +39,14 @@ def aoai_metadata(system_prompt, user_prompt, response, name_model, version_mode
         if name_model in ['gpt-4o', 'gpt-4o-', 'gpt-4o-mini']:  
             encoding = tiktoken.get_encoding('o200k_base')  
             return len(encoding.encode(text)) 
-        elif name_model in ['text-embedding-ada-002']:
+        elif name_model in ['text-embedding-ada-002', 'gpt-4']:
             encoding = tiktoken.get_encoding('cl100k_base')
             return len(encoding.encode(text)) 
         return 0   
     if retrieve == False:
         prompt_token_count = token_amount(text=system_prompt, name_model=name_model) + token_amount(text=user_prompt, name_model=name_model)  
         response_token_count = token_amount(text=response, name_model=name_model) 
-        if region == 'East US 2':  
+        if region in ['East US', 'East US 2']:  
             # Pricing gpt-4o - 2024-05-13  
             if name_model == 'gpt-4o' and version_model == '2024-05-13':  
                 prompt_cost = round((prompt_token_count / 1000) * .005, 5)  
@@ -64,7 +58,12 @@ def aoai_metadata(system_prompt, user_prompt, response, name_model, version_mode
             # Pricing gpt-4o - 2024-08-06  
             elif name_model == 'gpt-4o' and version_model == '2024-08-06':  
                 prompt_cost = round((prompt_token_count / 1000) * .00275, 5)  
-                completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .011, 5) 
+                completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .011, 5)
+            # Pricing gpt-4 - turbo-2024-04-09
+            elif name_model == 'gpt-4' and version_model == 'turbo-2024-04-09':  
+                prompt_cost = 0  
+                completion_cost = 0
+            # Pricing text-embedding-ada-002 - 2
             elif name_model == 'text-embedding-ada-002' and version_model == '2':
                 prompt_cost = round((prompt_token_count / 1000) * .0001, 5)
                 completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .0001, 5) 
@@ -72,7 +71,7 @@ def aoai_metadata(system_prompt, user_prompt, response, name_model, version_mode
                 raise HTTPException(status_code=400, detail="Invalid model or version.")  
             return prompt_token_count, prompt_cost, response_token_count, completion_cost  
         else:  
-            raise HTTPException(status_code=400, detail="East US 2 region only available.")  
+            raise HTTPException(status_code=400, detail="East US & East US 2 regions only available.")  
     elif retrieve == True:
         split_models = name_model.split(',')  # must send gpt and ada model in the following string: 'gpt-4o, text-embedding-ada-002'
         split_models = [s.strip() for s in split_models] 
@@ -81,15 +80,28 @@ def aoai_metadata(system_prompt, user_prompt, response, name_model, version_mode
         prompt_token_count = token_amount(text=system_prompt, name_model=gpt_model) + token_amount(text=user_prompt, name_model=gpt_model) 
         user_prompt_token_count_embeddings = token_amount(text=user_prompt, name_model=ada_model) 
         response_token_count = token_amount(text=response, name_model=gpt_model) 
-        if region == 'East US 2':
+        if region in ['East US', 'East US 2']:
+            # Pricing gpt-4o (2024-05-13) and text-embedding-ada-002 (2)
             if gpt_model == 'gpt-4o' and ada_model == 'text-embedding-ada-002' and version_model == '2024-05-13, 2':
                  prompt_cost = round((prompt_token_count / 1000) * .005, 5) + round((user_prompt_token_count_embeddings / 1000) * .0001, 5)
                  completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .015, 5)
+            # Pricing gpt-4o (2024-08-06) and text-embedding-ada-002 (2)
+            elif gpt_model == 'gpt-4o' and ada_model == 'text-embedding-ada-002' and version_model == '2024-08-06, 2':
+                 prompt_cost = round((prompt_token_count / 1000) * .005, 5) + round((user_prompt_token_count_embeddings / 1000) * .0001, 5)
+                 completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .015, 5)
+            # Pricing gpt-4o (2024-08-06) and text-embedding-ada-002 (2)
+            elif gpt_model == 'gpt-4o-mini' and ada_model == 'text-embedding-ada-002' and version_model == '2024-07-18, 2':
+                 prompt_cost = round((prompt_token_count / 1000) * .000165, 6) + round((user_prompt_token_count_embeddings / 1000) * .0001, 6)
+                 completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .00066, 5)
+            # Pricing gpt-4 (turbo-2024-04-09) and text-embedding-ada-002 (2)
+            elif gpt_model == 'gpt-4' and ada_model == 'text-embedding-ada-002' and version_model == 'turbo-2024-04-09, 2':
+                 prompt_cost = round((user_prompt_token_count_embeddings / 1000) * .0001, 5)
+                 completion_cost = 0
             else:  
                 raise HTTPException(status_code=400, detail="Invalid model or version.")  
             return prompt_token_count, prompt_cost, response_token_count, completion_cost 
         else:
-            raise HTTPException(status_code=400, detail="East US 2 region only available.")  
+            raise HTTPException(status_code=400, detail="East US & East US 2 regions only available.")  
   
 def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, name_model, version_model, 
                 deployment_model, prompt_token_count, response_token_count, project, api_name):  
@@ -159,20 +171,55 @@ def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, c
             # Define regex patterns for models  
             ada_pattern = re.compile(r'(?i)ada')  # Case insensitive match for 'ada' anywhere in the string  
             gpt4o_pattern = re.compile(r'(?i)gpt-?4o')  # Case insensitive match for 'gpt-4o' or 'gpt4o' anywhere in the string  
-  
-            if name_model == 'text-embedding-ada-002' and version_model == '2':  
+
+            # ADA model only insert to MySQL
+            if name_model == 'text-embedding-ada-002' and version_model == '2':  # Insert for ada-002 (2)
                 sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
                 val = (deployment_model, None, 0.000100, 'cl100k_base')  
                 mycursor.execute(sql, val)  
-                model_id = mycursor.lastrowid  
-            elif name_model == 'gpt-4o' and version_model == '2024-05-13': 
+                model_id = mycursor.lastrowid 
+
+            # GPT model only inserts to MySQL
+            elif name_model == 'gpt-4o' and version_model == '2024-05-13': # Insert for gpt-4o (turbo-2024-05-13)
                 sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
                 val = (deployment_model, .005000, 0.015000, 'o200k_base')  
                 mycursor.execute(sql, val)  
                 model_id = mycursor.lastrowid  
-            elif name_model == 'gpt-4o, text-embedding-ada-002' and version_model == "2024-05-13, 2":
+            elif name_model == 'gpt-4o' and version_model == '2024-08-06': # Insert for gpt-4o (turbo-2024-08-06)
                 sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
-                val = (deployment_model, .005100, 0.015000, 'o200k_base')  # prompt_price = prompt_price <text..ada-002> + prompt_price <gpt-4o>
+                val = (deployment_model, .0027500, 0.011000, 'o200k_base')  
+                mycursor.execute(sql, val)  
+                model_id = mycursor.lastrowid 
+            elif name_model == 'gpt-4o-mini' and version_model == '2024-07-18': # Insert for gpt-4o-mini (2024-07-18)
+                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
+                val = (deployment_model, .000165, 0.000660, 'o200k_base')  
+                mycursor.execute(sql, val)  
+                model_id = mycursor.lastrowid 
+            elif name_model == 'gpt-4' and version_model == 'turbo-2024-04-09': # Insert for gpt-4 (turbo-2024-04-09)
+                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
+                val = (deployment_model, 0.0, 0.0, 'cl100k_base')  
+                mycursor.execute(sql, val)  
+                model_id = mycursor.lastrowid
+
+            # GPT & ADA model inserts to MySQL
+            elif name_model == 'gpt-4o, text-embedding-ada-002' and version_model == "2024-05-13, 2": # Insert for gpt-4o (2024-05-13) + ada-002 (2)
+                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
+                val = (deployment_model, .005+.0001, 0.015000, 'o200k_base, cl100k_base')  # prompt_price = prompt_price <text..ada-002> + prompt_price <gpt-4o>
+                mycursor.execute(sql, val)  
+                model_id = mycursor.lastrowid  
+            elif name_model == 'gpt-4o, text-embedding-ada-002' and version_model == "2024-08-06, 2": # Insert for gpt-4o (2024-08-06) + ada-002 (2)
+                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
+                val = (deployment_model, .00275+.0001, 0.011, 'o200k_base, cl100k_base')  # prompt_price = prompt_price <text..ada-002> + prompt_price <gpt-4o>
+                mycursor.execute(sql, val)  
+                model_id = mycursor.lastrowid  
+            elif name_model == 'gpt-4o-mini, text-embedding-ada-002' and version_model == "2024-07-18, 2": # Insert for gpt-4o-mini (2024-07-18) + ada-002 (2)
+                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
+                val = (deployment_model, .000165+.0001, 0.00066, 'o200k_base, cl100k_base')  # prompt_price = prompt_price <text..ada-002> + prompt_price <gpt-4o>
+                mycursor.execute(sql, val)  
+                model_id = mycursor.lastrowid  
+            elif name_model == 'gpt-4, text-embedding-ada-002' and version_model == "turbo-2024-04-09, 2": # Insert for gpt-4 (turbo-2024-04-09) + ada-002 (2)
+                sql = "INSERT INTO models (model, prompt_price, completion_price, tiktoken_encoding) VALUES (%s, %s, %s, %s)"  
+                val = (deployment_model, 0.0+.0001, 0.0, 'o200k_base, cl100k_base')  # prompt_price = prompt_price <text..ada-002> + prompt_price <gpt-4o>
                 mycursor.execute(sql, val)  
                 model_id = mycursor.lastrowid  
             else:  

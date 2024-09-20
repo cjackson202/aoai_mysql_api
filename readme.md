@@ -37,7 +37,7 @@ pip install -r requirements.txt
     azure_mysql_host = "MySQL server host"  
     azure_mysql_user = "MySQL admin user"  
     azure_mysql_schema = "MySQL schema (should be aoai_api)"  
-    ```  
+```  
 
 ## Additional Resources  
   

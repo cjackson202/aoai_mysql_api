@@ -10,11 +10,13 @@ This sub-directory contains 1 python API script and 3 python API tester scripts 
 1. `mysql_api.py`: This is a FastAPI python application created to insert the Azure OpenAI metadata into the MySQL database after each completion from the API call.  
     To date, only the following Azure OpenAI components are compatible with this API:  
     - **Models**:  
-        - gpt-4o (2024-05-13 and 2024-08-06)  
-        - gpt-4o-mini (2024-07-18)  
-        - text-embedding-ada-002 (2)
+        - ***gpt-4o (2024-05-13 and 2024-08-06)***: configured for regional API. Although API will still execute, pricing differs between Global & Regional deployments. 
+        - ***gpt-4o-mini (2024-07-18)***: configured for regional API. Although API will still execute, pricing differs between Global & Regional deployments. 
+        - ***gpt-4 (turbo-2024-04-09)***
+        - ***text-embedding-ada-002 (2)***
     - **Regions**:  
-        - East US 2  
+        - ***East US***
+        - ***East US 2***
 ### Python API tester scripts 
 Note: All tester scripts located in `/api_testers`
 1. `call_norag_api.py`: Designed to test the MySQL API using eligible GPT models specifically for chat scenarios where Retrieval-Augmented Generation (RAG) is not needed. 

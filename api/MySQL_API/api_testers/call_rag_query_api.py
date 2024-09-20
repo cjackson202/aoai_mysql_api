@@ -112,7 +112,7 @@ while True:
         "response": chain['answer'],  # Model's answer to the user prompt
         "deployment_model": f'{gpt_model}, {ada_model}', # Input your model deployment names here
         "name_model": "gpt-4o, text-embedding-ada-002",  # Input your models here
-        "version_model": "2024-05-13, 2",  # Input your model version here. NOT API VERSION.
+        "version_model": "2024-0-13, 2",  # Input your model version here. NOT API VERSION.
         "region": "East US 2",  # Input your AOAI resource region here
         "project": "Retriever (API Test)",  # Input your project name here. Following the system prompt for this test currently :)
         "api_name": url, # Input the url of the API used. 

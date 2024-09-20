@@ -34,7 +34,8 @@ ada_model = os.getenv('OPENAI_ADA_MODEL')
 source_content_pairs = [] 
 page_content_string = ""  
 # Initialize an empty set to store unique sources  
-sources_set = set()  
+sources_set = set() 
+# Start the indexing of Documents 
 embeddings = AzureOpenAIEmbeddings(azure_endpoint=endpoint, api_key=api_key, api_version=api_version, azure_deployment=ada_model)  
 vector_store = AzureSearch(  
     azure_search_endpoint=address,   
@@ -42,7 +43,7 @@ vector_store = AzureSearch(
     index_name=index_name,  
     embedding_function=embeddings.embed_query  
 )  
-file_path = os.path.join("..", "..", "..", "test_data", "peach_fly_usecase.docx") # Upload your .docx document to ../../test_data and specify the name here
+file_path = os.path.join("..", "..", "..", "test_data", "peach_fly_usecase.docx") # Upload your .docx document to ../../../test_data and specify the name here
 loader = Docx2txtLoader(file_path)  
 documents = loader.load()  
 text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)  
