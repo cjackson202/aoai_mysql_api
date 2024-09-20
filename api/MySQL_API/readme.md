@@ -1,26 +1,38 @@
-# NO_RAG_API  
+# MySQL_API  
   
 ## Overview  
-The NO_RAG_API is designed to capture metadata from each Azure OpenAI API call and store it in a MySQL database. The metadata captured includes prompts (system & user), tokens, completions, models, costs, and projects. This metadata is not limited and can be adjusted to capture more metadata based on needs. Inside the MySQL database, the data is organized in a relational schema, ensuring efficient storage and retrieval from the project level, meaning this database can be used for more than one application.   
+The MySQL_API is designed to capture metadata from each Azure OpenAI API call and store it in a MySQL database. The metadata captured includes prompts (system & user), tokens, completions, models, costs, and projects. This metadata is not limited and can be adjusted to capture more metadata based on needs. Inside the MySQL database, the data is organized in a relational schema, ensuring efficient storage and retrieval from the project level, meaning this database can be used for more than one application.   
 ***Note: ONLY FOR Azure OpenAI Solutions that do not include RAG methods***.  
   
 ## Contents  
-This sub-directory contains two main Python scripts:  
-1. `norag_mysql_api.py`: This is a FastAPI python application created to insert the Azure OpenAI metadata into the MySQL database after each completion from the API call.  
+This sub-directory contains 1 python API script and 3 python API tester scripts (Chat, RAG (Index), RAG (Query)):  
+### Python API script
+1. `mysql_api.py`: This is a FastAPI python application created to insert the Azure OpenAI metadata into the MySQL database after each completion from the API call.  
     To date, only the following Azure OpenAI components are compatible with this API:  
     - **Models**:  
         - gpt-4o (2024-05-13 and 2024-08-06)  
         - gpt-4o-mini (2024-07-18)  
+        - text-embedding-ada-002 (2)
     - **Regions**:  
         - East US 2  
-2. `call_norag_api.py`: This python script serves as a tester script where you can test the API on your Azure OpenAI instance.  
-    To use the tester python file, complete the following:  
+### Python API tester scripts 
+Note: All tester scripts located in `/api_testers`
+1. `call_norag_api.py`: Designed to test the MySQL API using eligible GPT models specifically for chat scenarios where Retrieval-Augmented Generation (RAG) is not needed. 
+2. `call_rag_index_api.py`: Designed to test the MySQL API using eligible ADA models specifically 
+for indexing scenarios, where embeddings for documents are generated. 
+3. `call_rag_query_api.py`: Designed to test the MySQL API using eligible GPT and ADA models, specifically for RAG scenarios, where embeddings for queries are generated and documents are retrieved from a vector store.
+    
+    To use the each of the tester python file, complete the following:  
     1. **Set .env variables for your AOAI instance**  
     ```sh  
     OPENAI_API_BASE = "AOAI Endpoint"  
     OPENAI_API_VERSION = "AOAI API Version"  
     OPENAI_API_KEY = "AOAI API Key"  
-    OPENAI_GPT_MODEL = "AOAI Model"  
+    OPENAI_GPT_MODEL = "AOAI GPT Model deployment name" 
+    OPENAI_ADA_MODEL = "AOAI ADA Model deployment name" 
+    AZURE_AI_SEARCH_URL = "Azure AI Search endpoint"
+    AZURE_AI_SEARCH_KEY = "Azure AI Search key"
+    AZURE_AI_SEARCH_INDEX = 'Azure AI Search index name'
     azure_mysql_password = "MySQL server admin password"  
     azure_mysql_host = "MySQL server host"  
     azure_mysql_user = "MySQL admin user"  
@@ -28,15 +40,15 @@ This sub-directory contains two main Python scripts:
     ```  
     2. **Run the API locally on your machine using this command:**  
     ```sh  
-    uvicorn norag_mysql_api:app --reload  
+    uvicorn mysql_api:app --reload  
     ```  
     Note: If you build the API from the docker file provided, you must switch to run on port 8000 with the following command (set docker .env variables in `/docker_env/.env`):  
     ```sh  
     docker run -p 8000:80 --env-file ./docker_env/.env mysql_aoai_api:v1  
     ```  
-    3. **Navigate to the No_Rag_API Sub-Directory:**  
+    3. **Navigate to the MySQL_API Sub-Directory:**  
     ```sh  
-    cd api/No_Rag_API  
+    cd api/MySQL_API  
     ```  
     4. **Run the python script from the terminal:**  
     ```sh  
@@ -46,25 +58,27 @@ This sub-directory contains two main Python scripts:
     Note - The following data should be passed as payload to the API:
     ```python 
         data = {  
-            "system_prompt": system_prompt,  # System prompt given to the AOAI model.
+            "system_prompt": "",  # System prompt given to the AOAI model.
 
-            "user_prompt": user_prompt,  # User prompt in which the end-user asks the model. 
+            "user_prompt": "",  # User prompt in which the end-user asks the model. 
 
-            "time_asked": time_asked, # Time in which the user prompt was asked.
+            "time_asked": "", # Time in which the user prompt was asked.
 
-            "response": response,  # Model's answer to the user prompt
+            "response": "",  # Model's answer to the user prompt
 
-            "deployment_model": deployment_name, # Input your model's deployment name here
+            "deployment_model": "", # Model's deployment name here
 
-            "name_model": "gpt-4o",  # Input you model here
+            "name_model": "",  # Model here
 
-            "version_model": "2024-05-13",  # Input your model version here. NOT API VERSION.
+            "version_model": "",  # Model version here. NOT API VERSION.
 
-            "region": "East US 2",  # Input your AOAI resource region here
+            "region": "East US 2",  # AOAI resource region here
 
-            "project": "Disney Character (API Test)",  # Input your project name here. Following the system prompt for this test currently :)
+            "project": "",  # Project/App name here.
             
-            "api_name": url # Input the url of the API used. 
+            "api_name": "", # The url of the API used. 
+
+            "retrieve": False # Set True if you are querying over documents in vector store. 
         }  
     ```
   
@@ -85,8 +99,9 @@ If you want to modify the metadata captured, follow these steps:
       ```  
   
 2. **Update the Python Script**:  
-    - Modify the `norag_mysql_api.py` script to include the logic for capturing and inserting the new metadata:
-        - Add new parameters to `sql_connect()` to accept `username`.    
+    - Modify the `mysql_api.py` script to include the logic for capturing and inserting the new metadata:
+        - Add `username` as a param for API payload.
+        - Add new parameter to `sql_connect()` to accept `username`.    
       - Insert the `username` and `prompt_id` into the created `users` table. 
     - Example function modification:  
       ```python  
@@ -102,7 +117,7 @@ If you want to modify the metadata captured, follow these steps:
   
           # Existing code...  
   
-          # Insert user login information into the users table with prompt_id  
+          # Insert user login information into the users table with prompt_id (comes from the latest prompt_id inserted)  
           sql = "INSERT INTO users (prompt_id, username) VALUES (%s, %s)"  
           val = (prompt_id, username)  
           cursor.execute(sql, val)  

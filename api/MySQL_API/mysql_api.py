@@ -5,19 +5,14 @@ Only compatibale with the following Azure OpenAI components:
 - Regions: East US 2
 
 UPDATES:
-    -   Modified timestamp in MySQL for the user prompt time asked. This update
-        allows you to see the time difference between asking prompt and receiving answer. 
-        'prompt' table, column 'timestamp' updated as varchar type, accepting the datetime as a string in UTC format. 
-         For example on implementing this change, please see 'call_norag_api.py' (must rerun sql script v2 to create schema with updates).
-
-    -   Added 'python_api' to mysql schema. This table captures the api used to insert the data to mysql (eventually will have rag and norag api's).
-        Insert statement for this table added, accepting the api url as string to go into the table column 'api_name'.
-        For example on implementing this change, please see 'call_norag_api.py' (must rerun sql script v2 to create schema with updates).
+    -   API now works for RAG approaches: indexing and querying 
+        - To test indexing, please see call_rag_index_api.py
+        - To test querying, please see call_rag_query_api.py
 
 
-To run this api use: uvicorn norag_mysql_api:app --reload
+To run this api use: uvicorn mysql_api:app --reload
 
-Last update: 9/18/2024
+Last update: 9/19/2024
 '''
 
 

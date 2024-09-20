@@ -10,7 +10,7 @@ Use the MySQl Installer to download MySQL Workbench. MySQL Workbench is a unifie
     - [App Service Plan](https://learn.microsoft.com/en-us/azure/app-service/overview-hosting-plans)
     - [Azure App Service](https://learn.microsoft.com/en-us/azure/app-service/overview)
     
-    To deploy the resources in azure run the `azure_resources_aoai_api.json` ARM template file. 
+    To deploy the resources in azure run the `azure_resources_mysql_api.json` ARM template file. 
     1.  `az deployment group create --resource-group <insert your RG> --template-file mysql_arm.json`
 
     2. `mysql -h <insert your host name> -u <input admin name>@<input server name> -p`
@@ -34,7 +34,7 @@ Use the MySQl Installer to download MySQL Workbench. MySQL Workbench is a unifie
     5. At this point, the schema `aoai_api` should be created in your server. 
 
 Extra:
-Docker build command **No_Rag_API**: `docker build -f api/No_Rag_API/Dockerfile -t your_image_name .` 
+Docker build command **MySQL_API**: `docker build -f api/MySQL_API/Dockerfile -t your_image_name .` 
 
 
 

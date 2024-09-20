@@ -7,7 +7,7 @@ RUN mkdir /app
 COPY ../../requirements.txt /app/requirements.txt  
   
 # Copy the FastAPI application files to /app in the container  
-COPY api/No_Rag_API/norag_mysql_api.py /app/norag_mysql_api.py 
+COPY api/MySQL_API/mysql_api.py /app/mysql_api.py 
   
 # Set the working directory  
 WORKDIR /app  

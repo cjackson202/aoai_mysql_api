@@ -42,7 +42,7 @@ vector_store = AzureSearch(
     index_name=index_name,  
     embedding_function=embeddings.embed_query  
 )  
-file_path = os.path.join("..", "..", "test_data", "peach_fly_usecase.docx") # Upload your .docx document to ../../test_data and specify the name here
+file_path = os.path.join("..", "..", "..", "test_data", "peach_fly_usecase.docx") # Upload your .docx document to ../../test_data and specify the name here
 loader = Docx2txtLoader(file_path)  
 documents = loader.load()  
 text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)  
@@ -50,7 +50,7 @@ docs = text_splitter.split_documents(documents)
 for doc in docs:
     source_content_pairs.append((doc.metadata['source'], doc.page_content))  
 vector_store.add_documents(documents=docs)  
-time_asked = get_time()  
+time_asked = get_time()  # Make sure time is captured right after adding docs to vector store
 for source, content in source_content_pairs:  
     page_content_string += content + "\nSource: " + source + "\n\n"   
 document_text = page_content_string.strip()
