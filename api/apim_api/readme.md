@@ -1,4 +1,4 @@
-# MySQL_API  
+# APIM_API  
   
 ## Overview  
 `apim_api` is designed to capture metadata from an Azure API Management (APIM) policy, which manages the Azure OpenAI API call. The APIM policy calls the api to store metadata in a MySQL or Cosmos database. The metadata captured includes prompts (system & user), tokens, completions, models, costs, and projects. This metadata is not limited and can be adjusted to capture more metadata based on needs. In the MySQL database, data is organized using a relational schema, ensuring efficient storage and retrieval at the project level. Conversely, in the Cosmos DB, data is stored in JSON format, allowing for flexible data types and eliminating the need for a rigid relational schema.

@@ -1,4 +1,4 @@
-# MySQL_API  
+# CODE_API  
   
 ## Overview  
 `code_api` is designed to capture metadata (in code) from each Azure OpenAI API call and store it in a MySQL or Cosmos database. The metadata captured includes prompts (system & user), tokens, completions, models, costs, and projects. This metadata is not limited and can be adjusted to capture more metadata based on needs. In the MySQL database, data is organized using a relational schema, ensuring efficient storage and retrieval at the project level. Conversely, in the Cosmos DB, data is stored in JSON format, allowing for flexible data types and eliminating the need for a rigid relational schema.
