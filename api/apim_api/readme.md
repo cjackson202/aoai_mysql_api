@@ -7,7 +7,7 @@
 ## Contents  
 This sub-directory contains 2 python API script and 3 python API tester scripts (Chat, RAG (Index), RAG (Query)):  
 ### Python API script
-1. `apim_api.py`: Similiar API to #1 except, the response from API is handled differently, allowing APIM to pass response to API in a policy. 
+1. `apim_api.py`: Similiar API to `code_api` except, the response from API is handled differently, allowing APIM to pass response to API in a policy. 
 ***Use when calling in APIM policy***.
   
     To date, only the following Azure OpenAI components are compatible with both APIs:  
