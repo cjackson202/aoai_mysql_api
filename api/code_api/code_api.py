@@ -296,6 +296,7 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         "System_prompt": system_prompt,  
         "User_prompt": user_prompt,  
         "Prompt_tokens": prompt_token_count,  
+        "Prompt_price": prompt_cost,
         "Time_asked": time_asked,  
         "Ai_response": response,  
         "Response_tokens": response_token_count,  
