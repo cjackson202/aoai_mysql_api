@@ -7,7 +7,7 @@ RUN mkdir /app
 COPY ../../requirements.txt /app/requirements.txt  
   
 # Copy the FastAPI application files to /app in the container  
-COPY api/MySQL_API/mysql_api.py /app/mysql_api.py 
+COPY api/MySQL_API/mysql_api.py /app/code_api.py 
   
 # Set the working directory  
 WORKDIR /app  
@@ -16,4 +16,4 @@ WORKDIR /app
 RUN pip install --no-cache-dir -r requirements.txt  
   
 # Command to run the FastAPI application  
-CMD ["uvicorn", "norag_mysql_api:app", "--host", "0.0.0.0", "--port", "80"]  
+CMD ["uvicorn", "code_api:app", "--host", "0.0.0.0", "--port", "80"]  

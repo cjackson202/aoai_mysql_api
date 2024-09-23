@@ -6,3 +6,6 @@ test_data/peach_fly_usecase.docx
 call_rag_api.py
 p3.py
 api/MySQL_API/__pycache__/mysql_api.cpython-311.pyc
+MySQL API Capture Approach Ideas.txt
+api/code_api/__pycache__/code_api.cpython-311.pyc
+api/code_api/__pycache__/mysql_api.cpython-311.pyc

@@ -1,13 +1,14 @@
 # MySQL_API  
   
 ## Overview  
-The MySQL_API is designed to capture metadata from each Azure OpenAI API call and store it in a MySQL database. The metadata captured includes prompts (system & user), tokens, completions, models, costs, and projects. This metadata is not limited and can be adjusted to capture more metadata based on needs. Inside the MySQL database, the data is organized in a relational schema, ensuring efficient storage and retrieval from the project level, meaning this database can be used for more than one application.   
-***Note: ONLY FOR Azure OpenAI Solutions that do not include RAG methods***.  
+`code_api` is designed to capture metadata (in code) from each Azure OpenAI API call and store it in a MySQL or Cosmos database. The metadata captured includes prompts (system & user), tokens, completions, models, costs, and projects. This metadata is not limited and can be adjusted to capture more metadata based on needs. In the MySQL database, data is organized using a relational schema, ensuring efficient storage and retrieval at the project level. Conversely, in the Cosmos DB, data is stored in JSON format, allowing for flexible data types and eliminating the need for a rigid relational schema.
+***Note: ONLY FOR Azure OpenAI Solutions that include regular chat and RAG methods***.  
   
 ## Contents  
 This sub-directory contains 1 python API script and 3 python API tester scripts (Chat, RAG (Index), RAG (Query)):  
 ### Python API script
-1. `mysql_api.py`: This is a FastAPI python application created to insert the Azure OpenAI metadata into the MySQL database after each completion from the API call.  
+1. `code_api.py`: This is a FastAPI python application created to insert the Azure OpenAI metadata into the MySQL database after each completion from the API call. 
+Use this api when you call directly in your code.  
     To date, only the following Azure OpenAI components are compatible with this API:  
     - **Models**:  
         - ***gpt-4o (2024-05-13 and 2024-08-06)***: configured for regional API. Although API will still execute, pricing differs between Global & Regional deployments. 
@@ -19,14 +20,14 @@ This sub-directory contains 1 python API script and 3 python API tester scripts 
         - ***East US 2***
 ### Python API tester scripts 
 Note: All tester scripts located in `/api_testers`
-1. `call_norag_api.py`: Designed to test the MySQL API using eligible GPT models specifically for chat scenarios where Retrieval-Augmented Generation (RAG) is not needed. 
-2. `call_rag_index_api.py`: Designed to test the MySQL API using eligible ADA models specifically 
+1. `call_norag_api.py`: Designed to test the code_api using eligible GPT models specifically for chat scenarios where Retrieval-Augmented Generation (RAG) is not needed. 
+2. `call_rag_index_api.py`: Designed to test the code_api using eligible ADA models specifically 
 for indexing scenarios, where embeddings for documents are generated. 
-3. `call_rag_query_api.py`: Designed to test the MySQL API using eligible GPT and ADA models, specifically for RAG scenarios, where embeddings for queries are generated and documents are retrieved from a vector store.
+3. `call_rag_query_api.py`: Designed to test the code_api using eligible GPT and ADA models, specifically for RAG scenarios, where embeddings for queries are generated and documents are retrieved from a vector store.
     
     To use the each of the tester python file, complete the following:  
     1. **Set .env variables for your AOAI instance**  
-    ```sh  
+```sh  
     OPENAI_API_BASE = "AOAI Endpoint"  
     OPENAI_API_VERSION = "AOAI API Version"  
     OPENAI_API_KEY = "AOAI API Key"  
@@ -39,26 +40,28 @@ for indexing scenarios, where embeddings for documents are generated.
     azure_mysql_host = "MySQL server host"  
     azure_mysql_user = "MySQL admin user"  
     azure_mysql_schema = "MySQL schema (should be aoai_api)"  
-    ```  
-    2. **Run the API locally on your machine using this command:**  
-    ```sh  
-    uvicorn mysql_api:app --reload  
-    ```  
-    Note: If you build the API from the docker file provided, you must switch to run on port 8000 with the following command (set docker .env variables in `/docker_env/.env`):  
-    ```sh  
+    azure_cosmosdb_key = "Azure CosmosDB api key"
+    azure_cosmosdb_endpoint = "Azure CosmosDB endpoint"
+```  
+2. **Run the API locally on your machine using this command:**  
+```sh  
+    uvicorn code_api:app --reload  
+```  
+Note: If you build the API from the docker file provided, you must switch to run on port 8000 with the following command (set docker .env variables in `/docker_env/.env`):  
+```sh  
     docker run -p 8000:80 --env-file ./docker_env/.env mysql_aoai_api:v1  
-    ```  
-    3. **Navigate to the MySQL_API Sub-Directory:**  
-    ```sh  
-    cd api/MySQL_API  
-    ```  
-    4. **Run the python script from the terminal:**  
-    ```sh  
+```  
+3. **Navigate to the code_api Directory:**  
+```sh  
+    cd api/code_api 
+```  
+4. **Run the python script from the terminal:**  
+```sh  
     python call_norag_api.py  
-    ```  
+```  
     
-    Note - The following data should be passed as payload to the API:
-    ```python 
+Note - The following data should be passed as payload to the API:
+```python 
         data = {  
             "system_prompt": "",  # System prompt given to the AOAI model.
 
@@ -80,11 +83,13 @@ for indexing scenarios, where embeddings for documents are generated.
             
             "api_name": "", # The url of the API used. 
 
-            "retrieve": False # Set True if you are querying over documents in vector store. 
+            "retrieve": False, # Set True if you are querying over documents in vector store. 
+
+            "database": "" # Set to cosmosdb or mysqldb depending on desired platform
         }  
-    ```
+```
   
-## Modifying Metadata Capturing  
+## Modifying Metadata Capturing for MySQL 
   
 If you want to modify the metadata captured, follow these steps:  
   
@@ -101,12 +106,12 @@ If you want to modify the metadata captured, follow these steps:
       ```  
   
 2. **Update the Python Script**:  
-    - Modify the `mysql_api.py` script to include the logic for capturing and inserting the new metadata:
+    - Modify the `code_api.py` script to include the logic for capturing and inserting the new metadata:
         - Add `username` as a param for API payload.
         - Add new parameter to `sql_connect()` to accept `username`.    
       - Insert the `username` and `prompt_id` into the created `users` table. 
     - Example function modification:  
-      ```python  
+    ```python  
       def sql_connect(system_prompt, user_prompt, prompt_cost, response, completion_cost, deployment_model, prompt_token_count, response_token_count, project, username):  
           # Connect to MySQL  
           connection = mysql.connector.connect(  

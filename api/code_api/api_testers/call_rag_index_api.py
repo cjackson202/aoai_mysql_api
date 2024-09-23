@@ -2,7 +2,7 @@
 This script is designed to test the MySQL API using eligible ADA models specifically 
 for indexing scenarios, where embeddings for documents are generated.
 
-Updated 9/19/24
+Updated 9/23/24
 '''
 
 import os  
@@ -58,7 +58,7 @@ document_text = page_content_string.strip()
 
 
 # Call MySQL API to capture metadata (make sure api is running locally)
-url = "http://127.0.0.1:8000/norag_api_mysql"  
+url = "http://127.0.0.1:8000/code_api"  
 
 # The following data must be sent as payload with each API request.
 data = {  
@@ -69,7 +69,8 @@ data = {
     "version_model": "2",  # Input your model version here. NOT API VERSION.
     "region": "East US 2",  # Input your AOAI resource region here
     "project": "Embeddings Index (API Test)",  # Input your project name here. Following the system prompt for this test currently :)
-    "api_name": url # Input the url of the API used. 
+    "api_name": url,  # Input the url of the API used. 
+    "database": "cosmosdb" # Set to cosmosdb or mysqldb depending on desired platform
 }  
 
 response = requests.post(url, headers={"Content-Type": "application/json"}, data=json.dumps(data))  

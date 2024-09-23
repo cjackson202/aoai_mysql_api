@@ -6,7 +6,7 @@ Findings:
 - Azure AI Search uses a default embedding model if no custom model is specified.
 - To use your own model, specify model in AzureSearch(). Then call model in embedding_function parameter in the AzureAISearchRetriever().
 
-Update 9/19/24
+Update 9/23/24
 '''
 
 import os
@@ -90,6 +90,7 @@ while True:
     # Initialize object that holds sources in the returned dictionary
     sources = [] 
     page_contents = []
+    print(chain)
     for doc in chain['context']:
         source = doc.metadata['metadata']
         page_content = doc.page_content
@@ -102,7 +103,7 @@ while True:
     page_content = "".join(page_contents) 
     system_prompt = qa_system_prompt.replace("{context}", page_content)
     # Call MySQL API to capture metadata (make sure api is running locally)
-    url = "http://127.0.0.1:8000/norag_api_mysql"  
+    url = "http://127.0.0.1:8000/code_api"  
     
     # The following data must be sent as payload with each API request.
     data = {  
@@ -112,11 +113,12 @@ while True:
         "response": chain['answer'],  # Model's answer to the user prompt
         "deployment_model": f'{gpt_model}, {ada_model}', # Input your model deployment names here
         "name_model": "gpt-4o, text-embedding-ada-002",  # Input your models here
-        "version_model": "2024-0-13, 2",  # Input your model version here. NOT API VERSION.
+        "version_model": "2024-05-13, 2",  # Input your model version here. NOT API VERSION.
         "region": "East US 2",  # Input your AOAI resource region here
         "project": "Retriever (API Test)",  # Input your project name here. Following the system prompt for this test currently :)
         "api_name": url, # Input the url of the API used. 
-        "retrieve": True # Set to True, indicating you are utilizing RAG.
+        "retrieve": True, # Set to True, indicating you are utilizing RAG.
+        "database": "cosmosdb" # Set to cosmosdb or mysqldb depending on desired platform
     }  
     
     response = requests.post(url, headers={"Content-Type": "application/json"}, data=json.dumps(data))  

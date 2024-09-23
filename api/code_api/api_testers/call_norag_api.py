@@ -2,7 +2,7 @@
 This script is designed to test the MySQL API using eligible GPT models specifically for chat scenarios 
 where Retrieval-Augmented Generation (RAG) is not needed.
 
-Updated 9/19/24
+Updated 9/23/24
 '''
 
 import requests  
@@ -45,7 +45,7 @@ while True:
     print(f"GPT: {response}\n\n")
 
     # Call MySQL API to capture metadata (make sure api is running locally)
-    url = "http://127.0.0.1:8000/norag_api_mysql"  
+    url = "http://127.0.0.1:8000/code_api"  
     
     # The following data must be sent as payload with each API request.
     data = {  
@@ -58,7 +58,8 @@ while True:
         "version_model": "2024-05-13",  # Input your model version here. NOT API VERSION.
         "region": "East US 2",  # Input your AOAI resource region here
         "project": "Disney Character (API Test)",  # Input your project name here. Following the system prompt for this test currently :)
-        "api_name": url # Input the url of the API used. 
+        "api_name": url, # Input the url of the API used. 
+        "database": "cosmosdb" # Specify here cosmosdb or mysql as database. 
     }  
     
     response = requests.post(url, headers={"Content-Type": "application/json"}, data=json.dumps(data))  

@@ -1,0 +1,88 @@
+{  
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",  
+  "contentVersion": "1.0.0.0",  
+  "parameters": {  
+    "flexibleServers_aoai-api-mysql_name": {  
+      "defaultValue": "aoai-api-mysql",  
+      "type": "String"  
+    },  
+    "administratorLogin": {  
+      "type": "string",  
+      "metadata": {  
+        "description": "The administrator login for the MySQL server."  
+      }  
+    },  
+    "administratorLoginPassword": {  
+      "type": "securestring",  
+      "metadata": {  
+        "description": "The password for the MySQL administrator login."  
+      }  
+    },  
+    "allowedIPAddress": {  
+      "type": "string",  
+      "metadata": {  
+        "description": "The IP address to allow through the firewall."  
+      }  
+    }
+  },  
+  "resources": [  
+    {  
+      "type": "Microsoft.DBforMySQL/flexibleServers",  
+      "apiVersion": "2024-02-01-preview",  
+      "name": "[parameters('flexibleServers_aoai-api-mysql_name')]",  
+      "location": "East US 2",  
+      "sku": {  
+        "name": "Standard_B1ms",  
+        "tier": "Burstable"  
+      },  
+      "properties": {  
+        "administratorLogin": "[parameters('administratorLogin')]",  
+        "administratorLoginPassword": "[parameters('administratorLoginPassword')]",  
+        "storage": {  
+          "storageSizeGB": 20,  
+          "iops": 360,  
+          "autoGrow": "Enabled",  
+          "autoIoScaling": "Enabled",  
+          "logOnDisk": "Disabled",  
+          "storageRedundancy": "LocalRedundancy"  
+        },  
+        "version": "8.0.21",  
+        "availabilityZone": "2",  
+        "network": {  
+          "publicNetworkAccess": "Enabled"  
+        },  
+        "backup": {  
+          "backupRetentionDays": 7,  
+          "geoRedundantBackup": "Disabled"  
+        },  
+        "highAvailability": {  
+          "mode": "Disabled"  
+        }  
+      }  
+    },  
+    {  
+      "type": "Microsoft.DBforMySQL/flexibleServers/databases",  
+      "apiVersion": "2023-12-30",  
+      "name": "[concat(parameters('flexibleServers_aoai-api-mysql_name'), '/sys')]",  
+      "dependsOn": [  
+        "[resourceId('Microsoft.DBforMySQL/flexibleServers', parameters('flexibleServers_aoai-api-mysql_name'))]"  
+      ],  
+      "properties": {  
+        "charset": "utf8mb4",  
+        "collation": "utf8mb4_0900_ai_ci"  
+      }  
+    },  
+    {  
+      "type": "Microsoft.DBforMySQL/flexibleServers/firewallRules",  
+      "apiVersion": "2023-12-30",  
+      "name": "[concat(parameters('flexibleServers_aoai-api-mysql_name'), '/AllowIPAddress')]",  
+      "dependsOn": [  
+        "[resourceId('Microsoft.DBforMySQL/flexibleServers', parameters('flexibleServers_aoai-api-mysql_name'))]"  
+      ],  
+      "properties": {  
+        "startIpAddress": "[parameters('allowedIPAddress')]",  
+        "endIpAddress": "[parameters('allowedIPAddress')]"  
+      }  
+    }
+  ]  
+}  

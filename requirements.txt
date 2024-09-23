@@ -10,11 +10,7 @@ python-docx
 docx2txt
 azure-search-documents==11.5.1
 azure-identity==1.17.1
-pypdf2
-matplotlib
-scipy
-seaborn
-altair
 unstructured
 fastapi 
 uvicorn
+azure-cosmos

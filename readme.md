@@ -3,7 +3,9 @@
 This repository offers a complete solution to capturing essential metadata from Azure OpenAI API calls. 
 
 ## API's 
-1. [MySQL_API](api/MySQL_API/readme.md): Created for capturing AOAI APi metadata into a MySQL server for chat (chat completions), RAG (Index), and RAG (Querying). 
+[Choosing an API](api/readme.md)
+1. [code_api](api/code_api/readme.md): Created for capturing AOAI API metadata (in code) into a MySQL or Cosmos database for chat (chat completions), RAG (Index), and RAG (Querying). 
+2. [apim_api](api/apim_api/readme.md): Created for capturing AOAI API metadata (in APIM policy) into a MySQL or Cosmos database for chat (chat completions), RAG (Index), and RAG (Querying). 
 
 ## Getting started
 To get started with this repository, please set up you environment in the following steps:
@@ -37,6 +39,8 @@ pip install -r requirements.txt
     azure_mysql_host = "MySQL server host"  
     azure_mysql_user = "MySQL admin user"  
     azure_mysql_schema = "MySQL schema (should be aoai_api)"  
+    azure_cosmosdb_key = "Azure CosmosDB api key"
+    azure_cosmosdb_endpoint = "Azure CosmosDB endpoint" 
 ```  
 
 ## Additional Resources  

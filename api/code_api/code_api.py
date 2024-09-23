@@ -1,12 +1,11 @@
 '''
 UPDATES:
-    - Added East US to compatiable regions.
-    - Added GPT-4-Turbo to compatiable models. 
+    - Added Cosmos DB as an option to API. (to test, execute a script in /api_testers specifying the type in database param)
+    - Changed API name to code_api (see updated run command)
 
+To run this api locally use: uvicorn code_api:app --reload
 
-To run this api use: uvicorn mysql_api:app --reload
-
-Last update: 9/20/2024
+Last update: 9/23/2024
 '''
 
 
@@ -17,6 +16,8 @@ import os
 from dotenv import load_dotenv  
 import re  
 import tiktoken  
+from azure.cosmos import CosmosClient, exceptions, PartitionKey  
+from datetime import datetime, timezone
   
 load_dotenv()  
 app = FastAPI()  
@@ -33,6 +34,7 @@ class RequestData(BaseModel):
     project: str = Field(default="")    
     api_name: str = Field(default="")   
     retrieve: bool = Field(default=False)
+    database: str = Field(default="")
   
 def aoai_metadata(system_prompt, user_prompt, response, name_model, version_model, region, retrieve):  
     def token_amount(text, name_model):  
@@ -102,7 +104,8 @@ def aoai_metadata(system_prompt, user_prompt, response, name_model, version_mode
             return prompt_token_count, prompt_cost, response_token_count, completion_cost 
         else:
             raise HTTPException(status_code=400, detail="East US & East US 2 regions only available.")  
-  
+
+# function for inserting data to MySQL database 
 def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, name_model, version_model, 
                 deployment_model, prompt_token_count, response_token_count, project, api_name):  
     try:  
@@ -238,15 +241,92 @@ def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, c
         return {"message": f"{mycursor.rowcount} record(s) inserted into {os.getenv('azure_mysql_schema')} database."}  
     except Exception as e:  
         raise HTTPException(status_code=500, detail=f"Failed to access MySQL DB with error: {e}")  
+
+# function for inserting into cosmos database 
+def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, 
+                deployment_model, prompt_token_count, response_token_count, project, api_name):
+    # Initialize the Cosmos client  
+    endpoint = os.getenv("azure_cosmosdb_endpoint")  
+    key = os.getenv("azure_cosmosdb_key")            
+
+    # Function to get the highest existing id  
+    def get_highest_id(container):  
+        query = "SELECT VALUE MAX(c.id) FROM c"  
+        items = list(container.query_items(  
+            query=query,  
+            enable_cross_partition_query=True  
+        ))  
+        return items[0] if items else 0  
+    
+    # Function to get current date and time
+    def get_time():
+        current_utc_time = datetime.now(timezone.utc)   
+        formatted_time = current_utc_time.strftime('%Y-%m-%d %H:%M:%S') 
+        return formatted_time 
+
+    client = CosmosClient(endpoint, key)  
+    
+    # Create a database  
+    database_name = 'AOAI_Cosmos_Metadata'  
+    try:  
+        database = client.create_database_if_not_exists(id=database_name)  
+    except exceptions.CosmosResourceExistsError:  
+        database = client.get_database_client(database_name)  
+    
+    # Create a container  
+    container_name = 'Metadata'  
+    partition_key_path = '/Project'  # Replace with your partition key path  
+    try:  
+        container = database.create_container_if_not_exists(  
+            id=container_name,  
+            partition_key=PartitionKey(path=partition_key_path),  
+            offer_throughput=400  
+        )  
+    except exceptions.CosmosResourceExistsError:  
+        container = database.get_container_client(container_name)  
+    
+    # Get the highest existing id and increment it  
+    highest_id = int(get_highest_id(container))
+    new_id = (highest_id if highest_id is not None else 0) + 1   
+    
+    # Define the JSON document to insert  
+    document = {  
+        "id": str(new_id),  # Incremented ID  
+        "Project": project,  
+        "System_prompt": system_prompt,  
+        "User_prompt": user_prompt,  
+        "Prompt_tokens": prompt_token_count,  
+        "Time_asked": time_asked,  
+        "Ai_response": response,  
+        "Response_tokens": response_token_count,  
+        "Completion_price": completion_cost,  
+        "Time_answered": get_time(),  
+        "Ai_model": deployment_model,  
+        "API": api_name 
+    }  
+    
+    # Insert the JSON document into the container  
+    try:  
+        container.create_item(body=document)  
+        return f"Document inserted successfully with id: {new_id}"
+    except exceptions.CosmosHttpResponseError as e:  
+        return f"An error occurred: {e.message}"
   
 def main(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, name_model, version_model, deployment_model, prompt_token_count, 
-         response_token_count, project, api_name):  
-    return sql_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, response=response, 
-                        completion_cost=completion_cost, name_model=name_model, version_model=version_model, deployment_model=deployment_model, 
-                        prompt_token_count=prompt_token_count, response_token_count=response_token_count, project=project, api_name=api_name)  
+         response_token_count, project, api_name, database):  
+    if database == "mysqldb":
+        return sql_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, response=response, 
+                            completion_cost=completion_cost, name_model=name_model, version_model=version_model, deployment_model=deployment_model, 
+                            prompt_token_count=prompt_token_count, response_token_count=response_token_count, project=project, api_name=api_name) 
+    elif database == "cosmosdb":
+        return cosmosdb_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, 
+                                response=response, completion_cost=completion_cost, deployment_model=deployment_model, prompt_token_count=prompt_token_count, 
+                                response_token_count=response_token_count, project=project, api_name=api_name)
+    else:
+        return "Database must be mysqldb or cosmosdb. Please specifiy one these values."
  
   
-@app.post("/norag_api_mysql")  
+@app.post("/code_api")  
 def process_data(data: RequestData):  
     prompt_token_count, prompt_cost, response_token_count, completion_cost = aoai_metadata(  
         system_prompt=data.system_prompt,  
@@ -272,6 +352,7 @@ def process_data(data: RequestData):
         response_token_count=response_token_count,  
         project=data.project,  
         api_name=data.api_name,  
+        database=data.database
     )  
   
     return result  
