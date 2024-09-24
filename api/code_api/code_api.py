@@ -8,7 +8,6 @@ To run this api locally use: uvicorn code_api:app --reload
 Last update: 9/23/2024
 '''
 
-
 from fastapi import FastAPI, HTTPException  
 from pydantic import BaseModel, Field 
 import mysql.connector  
@@ -244,26 +243,32 @@ def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, c
 
 # function for inserting into cosmos database 
 def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, 
-                deployment_model, prompt_token_count, response_token_count, project, api_name):
-    # Initialize the Cosmos client  
+                deployment_model, prompt_token_count, response_token_count, project, api_name, version_model):
+    # Initialize Cosmos env variables 
     endpoint = os.getenv("azure_cosmosdb_endpoint")  
     key = os.getenv("azure_cosmosdb_key")            
 
-    # Function to get the highest existing id  
+    # Function to get the highest existing id (since ids stored as string, grab them all, then convert to int for max value) 
     def get_highest_id(container):  
-        query = "SELECT VALUE MAX(c.id) FROM c"  
+        query = "SELECT c.id FROM c"  
         items = list(container.query_items(  
             query=query,  
             enable_cross_partition_query=True  
         ))  
-        return items[0] if items else 0  
+        # Convert all IDs to integers and find the max  
+        ids = [int(item['id']) for item in items if item['id'].isdigit()] 
+        print(f"All IDs: {ids}") 
+        return max(ids) if ids else 0
     
     # Function to get current date and time
     def get_time():
         current_utc_time = datetime.now(timezone.utc)   
         formatted_time = current_utc_time.strftime('%Y-%m-%d %H:%M:%S') 
         return formatted_time 
+    
+    time_asked = get_time()
 
+    # Initialize the Cosmos client 
     client = CosmosClient(endpoint, key)  
     
     # Create a database  
@@ -286,8 +291,9 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         container = database.get_container_client(container_name)  
     
     # Get the highest existing id and increment it  
-    highest_id = int(get_highest_id(container))
-    new_id = (highest_id if highest_id is not None else 0) + 1   
+    highest_id = get_highest_id(container)
+    print(f"\nMax id: {highest_id}")
+    new_id = highest_id + 1
     
     # Define the JSON document to insert  
     document = {  
@@ -301,8 +307,9 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         "Ai_response": response,  
         "Response_tokens": response_token_count,  
         "Completion_price": completion_cost,  
-        "Time_answered": get_time(),  
-        "Ai_model": deployment_model,  
+        "Time_answered": time_asked,  
+        "Ai_model_deployment": deployment_model,  
+        "Ai_model_version": version_model,
         "API": api_name 
     }  
     
@@ -322,7 +329,7 @@ def main(system_prompt, user_prompt, time_asked, prompt_cost, response, completi
     elif database == "cosmosdb":
         return cosmosdb_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, 
                                 response=response, completion_cost=completion_cost, deployment_model=deployment_model, prompt_token_count=prompt_token_count, 
-                                response_token_count=response_token_count, project=project, api_name=api_name)
+                                response_token_count=response_token_count, project=project, api_name=api_name, version_model=version_model)
     else:
         return "Database must be mysqldb or cosmosdb. Please specifiy one these values."
  
