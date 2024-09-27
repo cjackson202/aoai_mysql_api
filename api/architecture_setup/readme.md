@@ -34,8 +34,6 @@ Use the MySQl Installer to download MySQL Workbench. MySQL Workbench is a unifie
     1.  `az deployment group create --resource-group <insert your RG> --template-file cosmos_arm.json`
 
 ---
-Extra:
-Docker build command **code_api**: `docker build -f api/code_api/Dockerfile -t your_image_name .` 
 
 
 

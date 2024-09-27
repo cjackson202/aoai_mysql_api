@@ -1,15 +1,19 @@
 '''
 UPDATES:
-    - Added Cosmos DB as an option to API. (to test, execute a script in /api_testers specifying the type in database param)
-    - Changed API name to code_api (see updated run command)
+    - Takes in APIM policy data
+        - response body from AOAI
+        - additional headers passed (see call_apim_api.py)
+    - Added +11 to prompt token count (seems to be defaulted from Azure)
 
-To run this api locally use: uvicorn code_api:app --reload
+To run this api locally use: uvicorn apim_api:app --reload
 
-Last update: 9/23/2024
+To run this api in APIM, see run_with_ngrok.py. 
+
+Last update: 9/27/2024
 '''
 
-from fastapi import FastAPI, HTTPException  
-from pydantic import BaseModel, Field 
+from fastapi import FastAPI, Request, HTTPException  
+from pydantic import BaseModel  
 import mysql.connector  
 import os  
 from dotenv import load_dotenv  
@@ -21,21 +25,10 @@ import json
   
 load_dotenv()  
 app = FastAPI()  
-  
-class RequestData(BaseModel):  
-    system_prompt: str  = Field(default="")  
-    user_prompt: str  = Field(default="")  
-    time_asked: str  = Field(default="")  
-    response: str  = Field(default="")  
-    deployment_model: str = Field(default="")  
-    name_model: str = Field(default="")  
-    version_model: str = Field(default="")    
-    region: str = Field(default="")    
-    project: str = Field(default="")    
-    api_name: str = Field(default="")   
-    retrieve: bool = Field(default=False)
-    database: str = Field(default="")
-  
+
+class ResponseData(BaseModel):  
+    data: str  
+
 def aoai_metadata(system_prompt, user_prompt, response, name_model, version_model, region, retrieve):  
     def token_amount(text, name_model):  
         if name_model in ['gpt-4o', 'gpt-4o-', 'gpt-4o-mini']:  
@@ -244,7 +237,7 @@ def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, c
 
 # function for inserting into cosmos database 
 def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, 
-                deployment_model, prompt_token_count, response_token_count, project, api_name, version_model):
+                deployment_model, prompt_token_count, response_token_count, project, api_name, version_model, search_score):
     # Initialize Cosmos env variables 
     endpoint = os.getenv("azure_cosmosdb_endpoint")  
     key = os.getenv("azure_cosmosdb_key")            
@@ -267,7 +260,7 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         formatted_time = current_utc_time.strftime('%Y-%m-%d %H:%M:%S') 
         return formatted_time 
     
-    time_asked = get_time()
+    time_answered = get_time()
 
     # Initialize the Cosmos client 
     client = CosmosClient(endpoint, key)  
@@ -307,8 +300,9 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         "Time_asked": time_asked,  
         "Ai_response": response,  
         "Response_tokens": response_token_count,  
-        "Completion_price": completion_cost,  
-        "Time_answered": time_asked,  
+        "Completion_price": completion_cost, 
+        "Search_score": search_score,
+        "Time_answered": time_answered,  
         "Ai_model_deployment": deployment_model,  
         "Ai_model_version": version_model,
         "API": api_name 
@@ -322,7 +316,7 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         return f"An error occurred: {e.message}"
   
 def main(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, name_model, version_model, deployment_model, prompt_token_count, 
-         response_token_count, project, api_name, database):  
+         response_token_count, project, api_name, database, search_score):  
     if database == "mysqldb":
         return sql_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, response=response, 
                             completion_cost=completion_cost, name_model=name_model, version_model=version_model, deployment_model=deployment_model, 
@@ -330,38 +324,71 @@ def main(system_prompt, user_prompt, time_asked, prompt_cost, response, completi
     elif database == "cosmosdb":
         return cosmosdb_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, 
                                 response=response, completion_cost=completion_cost, deployment_model=deployment_model, prompt_token_count=prompt_token_count, 
-                                response_token_count=response_token_count, project=project, api_name=api_name, version_model=version_model)
+                                response_token_count=response_token_count, project=project, api_name=api_name, version_model=version_model, search_score=search_score)
     else:
         return "Database must be mysqldb or cosmosdb. Please specifiy one these values."
  
   
-@app.post("/code_api")  
-def process_data(data: RequestData):  
+@app.post("/apim_api")  
+async def process_data(request: Request):  
+    # Capture the incoming request data  
+    response_data = await request.body()  
+    response_text = response_data.decode('utf-8')  # Decode bytes to string  
+    response_text = json.loads(response_text)
+    headers = request.headers
+    system_prompt = headers.get('system_prompt', 'Header not found')  
+    user_prompt = headers.get('user_prompt', 'Header not found')  
+    time_asked = headers.get('time_asked', 'Header not found')
+    deployment_model = headers.get('deployment_model', 'Header not found')    
+    name_model = headers.get('name_model', 'Header not found')  
+    version_model = headers.get('version_model', 'Header not found') 
+    region = headers.get('region', 'Header not found')  
+    project = headers.get('project', 'Header not found') 
+    print(f"\n\n{project}\n\n")
+    database = headers.get('database', 'Header not found') 
+    retrieve =  headers.get('retrieve', 'Header not found') 
+    if retrieve == "False":
+        retrieve = False
+    elif retrieve == "True":
+        retrieve = True
+    url = str(request.url)
+
+    if project == "Disney Character (API Test)":
+        ai_response = response_text['choices'][0]['message']["content"]
+        rag_search_score = ""
+    # if data.project == "Retriever (API Test)":
+    #     data.system_prompt, rag_search_score, data.response = parse_retriever_response(response=data.response, system_prompt=data.system_prompt)
+    if project == "Embeddings Index (API Test)":
+        ai_response = ""
+        rag_search_score = ""
+
+    print(ai_response)
     prompt_token_count, prompt_cost, response_token_count, completion_cost = aoai_metadata(  
-    system_prompt=data.system_prompt,  
-    user_prompt=data.user_prompt,  
-    response=data.response,  
-    name_model=data.name_model,  
-    version_model=data.version_model,  
-    region=data.region, 
-    retrieve=data.retrieve,  
+        system_prompt=system_prompt,  
+        user_prompt=user_prompt,  
+        response=ai_response,  
+        name_model=name_model,  
+        version_model=version_model,  
+        region=region, 
+        retrieve=retrieve,  
     )  
-  
+
     result = main(  
-        system_prompt=data.system_prompt,  
-        user_prompt=data.user_prompt,  
-        time_asked=data.time_asked,  
+        system_prompt=system_prompt,  
+        user_prompt=user_prompt,  
+        time_asked=time_asked,  
         prompt_cost=prompt_cost,  
-        response=data.response,  
+        response=ai_response,  
         completion_cost=completion_cost,
-        name_model=data.name_model,
-        version_model=data.version_model,  
-        deployment_model=data.deployment_model,  
+        name_model=name_model,
+        version_model=version_model,  
+        deployment_model=deployment_model,  
         prompt_token_count=prompt_token_count,  
         response_token_count=response_token_count,  
-        project=data.project,  
-        api_name=data.api_name,  
-        database=data.database
+        project=project,  
+        api_name=url,  
+        database=database,
+        search_score=rag_search_score
     )  
   
     return result  

@@ -14,3 +14,4 @@ unstructured
 fastapi 
 uvicorn
 azure-cosmos
+pyngrok

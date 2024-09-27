@@ -39,10 +39,11 @@ while True:
         {"role": "user", "content": user_prompt}
     ]
     )
-    response = response.to_json()
-    response = json.loads(response)
-    response = response['choices'][0]['message']["content"]
-    print(f"GPT: {response}\n\n")
+
+    ai_response_dict = response.to_dict()
+    ai_response = ai_response_dict['choices'][0]['message']["content"]
+    print(f"GPT: {ai_response}\n\n")
+
 
     # Call MySQL API to capture metadata (make sure api is running locally)
     url = "http://127.0.0.1:8000/code_api"  
@@ -52,7 +53,7 @@ while True:
         "system_prompt": system_prompt,  # System prompt given to the AOAI model.
         "user_prompt": user_prompt,  # User prompt in which the end-user asks the model. 
         "time_asked": time_asked, # Time in which the user prompt was asked.
-        "response": response,  # Model's answer to the user prompt
+        "response": ai_response,  # Model's answer to the user prompt
         "deployment_model": deployment_name, # Input your model's deployment name here
         "name_model": "gpt-4o",  # Input you model here
         "version_model": "2024-05-13",  # Input your model version here. NOT API VERSION.

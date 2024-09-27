@@ -43,18 +43,19 @@ for indexing scenarios, where embeddings for documents are generated.
     azure_cosmosdb_key = "Azure CosmosDB api key"
     azure_cosmosdb_endpoint = "Azure CosmosDB endpoint"
 ```  
-2. **Run the API locally on your machine using this command:**  
+2. **Navigate to the code_api Directory:**  
+```sh  
+    cd api/code_api 
+```  
+3. **Run the API locally on your machine using this command:**  
 ```sh  
     uvicorn code_api:app --reload  
 ```  
 Note: If you build the API from the docker file provided, you must switch to run on port 8000 with the following command (set docker .env variables in `/docker_env/.env`):  
 ```sh  
-    docker run -p 8000:80 --env-file ./docker_env/.env mysql_aoai_api:v1  
+    docker run -p 8000:80 --env-file ./docker_env/.env code_api:v1  
 ```  
-3. **Navigate to the code_api Directory:**  
-```sh  
-    cd api/code_api 
-```  
+Docker build command **code_api**: `docker build -f api/code_api/Dockerfile -t code_api:v1 .` 
 4. **Run the python script from the terminal:**  
 ```sh  
     python call_norag_api.py  

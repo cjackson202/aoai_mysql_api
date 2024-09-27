@@ -9,3 +9,6 @@ api/MySQL_API/__pycache__/mysql_api.cpython-311.pyc
 MySQL API Capture Approach Ideas.txt
 api/code_api/__pycache__/code_api.cpython-311.pyc
 api/code_api/__pycache__/mysql_api.cpython-311.pyc
+api/apim_api/apim_api_v2.py
+api/apim_api/__pycache__/apim_api_v2.cpython-311.pyc
+api/apim_api/__pycache__/apim_api.cpython-311.pyc
