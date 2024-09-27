@@ -1,4 +1,4 @@
-# Azure OpenAI MySQL API
+# Azure OpenAI MySQL/Cosmos API
 
 This repository offers a complete solution to capturing essential metadata from Azure OpenAI API calls. 
 
