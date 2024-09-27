@@ -41,6 +41,10 @@ pip install -r requirements.txt
     azure_mysql_schema = "MySQL schema (should be aoai_api)"  
     azure_cosmosdb_key = "Azure CosmosDB api key"
     azure_cosmosdb_endpoint = "Azure CosmosDB endpoint" 
+    APIM_API_KEY = "APIM API Key"
+    APIM_COMPLETIONS_URL = "APIM AOAI Completions URL"
+    APIM_EMBEDDINGS_URL = "APIM AOAI Embeddings URL"
+    ngrok_authtoken = "ngrok token to convert local api to public domain (for testing only)"
 ```  
 
 ## Additional Resources  
