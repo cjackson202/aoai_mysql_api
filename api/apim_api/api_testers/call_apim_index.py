@@ -34,18 +34,23 @@ page_content_string = ""
 # Initialize an empty set to store unique sources  
 sources_set = set() 
 # Start the indexing of Documents 
-file_path = os.path.join("..", "..", "test_data", "peach_fly_usecase.docx") # Upload your .docx document to ../../../test_data and specify the name here
+file_path = os.path.join("..", "..", "..", "test_data", "peach_fly_usecase.docx") # Upload your .docx document to ../../../test_data and specify the name here
 loader = Docx2txtLoader(file_path)  
 documents = loader.load()  
 text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)  
 docs = text_splitter.split_documents(documents)  
 for doc in docs:
-    source_content_pairs.append((doc.metadata['source'], doc.page_content))  
-for source, content in source_content_pairs:  
-    page_content_string += content + "\nSource: " + source + "\n\n"   
-document_text = page_content_string.strip()
-document_text = document_text.encode('ascii', 'ignore').decode('ascii')
+    source_content_pairs.append((doc.metadata['source']))  
+counter = 1
+for source in source_content_pairs:  
+    page_content_string += f"(Source #{counter}: {source}) "  
+    counter += 1 
+source = page_content_string.strip()
+document_text = ' '.join([doc.page_content.replace('\n', ' ') for doc in documents])  
+document_text = document_text.replace("“", '"').replace("”", '"')  
+# document_text = document_text.encode('ascii', 'ignore').decode('ascii')
 print(type(document_text))
+print(document_text + ' ' + source)
 time_asked = get_time()  # Make sure time is captured right before adding docs to vector store
 embeddings = AzureOpenAIEmbeddings(
     azure_endpoint=embeddings_url,
@@ -54,8 +59,8 @@ embeddings = AzureOpenAIEmbeddings(
     azure_deployment=ada_model,
     default_headers={
         'Content-Type': 'application/json',
-        "system_prompt": "",  # System prompt given to the AOAI model.
-        # "user_prompt": document_text,  # User prompt in which the end-user asks the model.
+        "system_prompt": '',  # System prompt given to the AOAI model.
+        "user_prompt": source,  # User prompt in which the end-user asks the model.
         "time_asked": get_time(),  # Time in which the user prompt was asked.
         "deployment_model": ada_model,  # Input your model's deployment name here
         "name_model": "text-embedding-ada-002",  # Input your model here

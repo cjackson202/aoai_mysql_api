@@ -29,7 +29,7 @@ app = FastAPI()
 class ResponseData(BaseModel):  
     data: str  
 
-def aoai_metadata(system_prompt, user_prompt, response, name_model, version_model, region, retrieve):  
+def aoai_metadata(system_prompt, user_prompt, response, name_model, version_model, region, retrieve, project, prompt_tokens):  
     def token_amount(text, name_model):  
         if name_model in ['gpt-4o', 'gpt-4o-', 'gpt-4o-mini']:  
             encoding = tiktoken.get_encoding('o200k_base')  
@@ -39,8 +39,12 @@ def aoai_metadata(system_prompt, user_prompt, response, name_model, version_mode
             return len(encoding.encode(text)) 
         return 0   
     if retrieve == False:
-        prompt_token_count = token_amount(text=system_prompt, name_model=name_model) + token_amount(text=user_prompt, name_model=name_model) + 11
-        response_token_count = token_amount(text=response, name_model=name_model) 
+        if project == 'Embeddings Index (API Test)':
+            prompt_token_count = prompt_tokens
+            response_token_count = 0
+        else:
+            prompt_token_count = token_amount(text=system_prompt, name_model=name_model) + token_amount(text=user_prompt, name_model=name_model) + 11
+            response_token_count = token_amount(text=response, name_model=name_model) 
         if region in ['East US', 'East US 2']:  
             # Pricing gpt-4o - 2024-05-13  
             if name_model == 'gpt-4o' and version_model == '2024-05-13':  
@@ -335,6 +339,7 @@ async def process_data(request: Request):
     response_data = await request.body()  
     response_text = response_data.decode('utf-8')  # Decode bytes to string  
     response_text = json.loads(response_text)
+    prompt_tokens = response_text['usage']['prompt_tokens']  
     headers = request.headers
     system_prompt = headers.get('system_prompt', 'Header not found')  
     user_prompt = headers.get('user_prompt', 'Header not found')  
@@ -359,8 +364,9 @@ async def process_data(request: Request):
     # if data.project == "Retriever (API Test)":
     #     data.system_prompt, rag_search_score, data.response = parse_retriever_response(response=data.response, system_prompt=data.system_prompt)
     if project == "Embeddings Index (API Test)":
-        ai_response = ""
+        ai_response = response_text['data'][0]['embedding']
         rag_search_score = ""
+        prompt_tokens = response_text['usage']['prompt_tokens'] 
 
     print(ai_response)
     prompt_token_count, prompt_cost, response_token_count, completion_cost = aoai_metadata(  
@@ -371,6 +377,8 @@ async def process_data(request: Request):
         version_model=version_model,  
         region=region, 
         retrieve=retrieve,  
+        project=project, 
+        prompt_tokens=prompt_tokens
     )  
 
     result = main(  
