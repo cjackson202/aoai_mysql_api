@@ -25,6 +25,7 @@ This sub-directory contains 1 python API script and 1 python API tester script (
 Note: All tester scripts located in `/api_testers`
 1. `call_apim_api.py`: Designed to test the apim_api using eligible GPT models specifically for chat scenarios where Retrieval-Augmented Generation (RAG) is not needed. 
 2. `call_apim_index.py`: Designed to test the apim_api using eligible ADA models specifically for indexing scenarios, where embeddings for documents are generated. 
+3. `call_apim_query.py`: Designed to test the apim_api using eligible GPT and ADA models, specifically for RAG scenarios, where embeddings for queries are generated and documents are retrieved from a vector store.
 
 To use the each of the tester python file, complete the following:  
 1. **Set .env variables for your AOAI instance**  

@@ -4,10 +4,13 @@ It captures the API’s metadata within the policy and then sends this informati
 
 Notes:
 - Additional params set in code must be passed to the POST in headers. 
-- APIM will handle returning the response, url
+- APIM will handle returning the request, response and url to `apim_api`.
 - Line 33 APIM Completions URL: "https://<APIM Resource>.azure-api.net/<API>/deployments/{model}/chat/completions?api-version={version}"
 
-Updated: 9/27/24
+Updates:
+- Updated header values passed to API (lines 46-47). These values will now come from APIM payload to `apim_api`.
+
+Updated: 10/02/24
 '''
 
 import requests
@@ -40,8 +43,8 @@ while True:
 
     headers = {
         'Content-Type':'application/json',
-        "system_prompt": system_prompt,  # System prompt given to the AOAI model.
-        "user_prompt": user_prompt,  # User prompt in which the end-user asks the model. 
+        "system_prompt": '',  # Leave empty string.
+        "user_prompt": '',  # Leave empty string.
         "time_asked": get_time(), # Time in which the user prompt was asked.
         "deployment_model": deployment_name, # Input your model's deployment name here
         "name_model": "gpt-4o",  # Input you model here
@@ -49,7 +52,7 @@ while True:
         "region": "East US 2",  # Input your AOAI resource region here
         "project": "Disney Character (API Test)",  # Input your project name here. Following the system prompt for this test currently :)
         "database": "mysqldb", # Specify here cosmosdb or mysql as database. 
-        "retrieve": "False" # Must specify True or False here as string (will only be passed in header as string)
+        "retrieve": "False" # Must specify True or False here as string 
     }
 
     data = {    

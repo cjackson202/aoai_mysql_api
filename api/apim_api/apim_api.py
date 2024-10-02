@@ -1,15 +1,15 @@
 '''
 UPDATES:
-    - Takes in APIM policy data
-        - response body from AOAI
-        - additional headers passed (see call_apim_api.py)
-    - Added +11 to prompt token count (seems to be defaulted from Azure)
+    - Querying with RAG added to the api via retreieve header (please see /api_testers/call_apim_query.py)
+    - Resquest body now captured in API, in addition to response body.
+        - APIM policy updated to send request and response as payload to this api.
+    - Prompts and token counts are captured from the response body. (Please see updated headers for each script in /api_testers)
 
-To run this api locally use: uvicorn apim_api:app --reload
+Execution:
+- To run this api locally use: uvicorn apim_api:app --reload
+- To run this api in APIM, see run_with_ngrok.py (preffered for APIM policy to work)
 
-To run this api in APIM, see run_with_ngrok.py. 
-
-Last update: 9/27/2024
+Last update: 10/02/2024
 '''
 
 from fastapi import FastAPI, Request, HTTPException  
@@ -29,7 +29,7 @@ app = FastAPI()
 class ResponseData(BaseModel):  
     data: str  
 
-def aoai_metadata(system_prompt, user_prompt, response, name_model, version_model, region, retrieve, project, prompt_tokens):  
+def aoai_metadata(system_prompt, user_prompt, response, name_model, version_model, region, retrieve, project, prompt_tokens, res_tokens):  
     def token_amount(text, name_model):  
         if name_model in ['gpt-4o', 'gpt-4o-', 'gpt-4o-mini']:  
             encoding = tiktoken.get_encoding('o200k_base')  
@@ -41,7 +41,13 @@ def aoai_metadata(system_prompt, user_prompt, response, name_model, version_mode
     if retrieve == False:
         if project == 'Embeddings Index (API Test)':
             prompt_token_count = prompt_tokens
-            response_token_count = 0
+            response_token_count = res_tokens
+        elif project == "Disney Character (API Test)":
+            prompt_token_count = prompt_tokens
+            response_token_count = res_tokens
+        elif project == 'Retriever (API Test)':
+            prompt_token_count = prompt_tokens
+            response_token_count = res_tokens
         else:
             prompt_token_count = token_amount(text=system_prompt, name_model=name_model) + token_amount(text=user_prompt, name_model=name_model) + 11
             response_token_count = token_amount(text=response, name_model=name_model) 
@@ -75,25 +81,29 @@ def aoai_metadata(system_prompt, user_prompt, response, name_model, version_mode
         split_models = name_model.split(',')  # must send gpt and ada model in the following string: 'gpt-4o, text-embedding-ada-002'
         split_models = [s.strip() for s in split_models] 
         gpt_model = split_models[0]  
-        ada_model = split_models[1]  
-        prompt_token_count = token_amount(text=system_prompt, name_model=gpt_model) + token_amount(text=user_prompt, name_model=gpt_model) + 11
+        ada_model = split_models[1] 
+        if project == 'Retriever (API Test)':
+            prompt_token_count = prompt_tokens
+            response_token_count = res_tokens
+        else:
+            prompt_token_count = token_amount(text=system_prompt, name_model=gpt_model) + token_amount(text=user_prompt, name_model=gpt_model) + 11
+            response_token_count = token_amount(text=response, name_model=gpt_model) 
         user_prompt_token_count_embeddings = token_amount(text=user_prompt, name_model=ada_model) 
-        response_token_count = token_amount(text=response, name_model=gpt_model) 
         if region in ['East US', 'East US 2']:
             # Pricing gpt-4o (2024-05-13) and text-embedding-ada-002 (2)
-            if gpt_model == 'gpt-4o' and ada_model == 'text-embedding-ada-002' and version_model == '2024-05-13, 2':
+            if gpt_model == 'gpt-4o' and ada_model == 'text-embedding-ada-002' and version_model == '2024-05-13,2':
                  prompt_cost = round((prompt_token_count / 1000) * .005, 5) + round((user_prompt_token_count_embeddings / 1000) * .0001, 5)
                  completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .015, 5)
             # Pricing gpt-4o (2024-08-06) and text-embedding-ada-002 (2)
-            elif gpt_model == 'gpt-4o' and ada_model == 'text-embedding-ada-002' and version_model == '2024-08-06, 2':
+            elif gpt_model == 'gpt-4o' and ada_model == 'text-embedding-ada-002' and version_model == '2024-08-06,2':
                  prompt_cost = round((prompt_token_count / 1000) * .005, 5) + round((user_prompt_token_count_embeddings / 1000) * .0001, 5)
                  completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .015, 5)
             # Pricing gpt-4o (2024-08-06) and text-embedding-ada-002 (2)
-            elif gpt_model == 'gpt-4o-mini' and ada_model == 'text-embedding-ada-002' and version_model == '2024-07-18, 2':
+            elif gpt_model == 'gpt-4o-mini' and ada_model == 'text-embedding-ada-002' and version_model == '2024-07-18,2':
                  prompt_cost = round((prompt_token_count / 1000) * .000165, 6) + round((user_prompt_token_count_embeddings / 1000) * .0001, 6)
                  completion_cost = round(((prompt_token_count + response_token_count) / 1000) * .00066, 5)
             # Pricing gpt-4 (turbo-2024-04-09) and text-embedding-ada-002 (2)
-            elif gpt_model == 'gpt-4' and ada_model == 'text-embedding-ada-002' and version_model == 'turbo-2024-04-09, 2':
+            elif gpt_model == 'gpt-4' and ada_model == 'text-embedding-ada-002' and version_model == 'turbo-2024-04-09,2':
                  prompt_cost = round((user_prompt_token_count_embeddings / 1000) * .0001, 5)
                  completion_cost = 0
             else:  
@@ -241,7 +251,7 @@ def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, c
 
 # function for inserting into cosmos database 
 def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, 
-                deployment_model, prompt_token_count, response_token_count, project, api_name, version_model, search_score):
+                deployment_model, prompt_token_count, response_token_count, project, api_name, version_model):
     # Initialize Cosmos env variables 
     endpoint = os.getenv("azure_cosmosdb_endpoint")  
     key = os.getenv("azure_cosmosdb_key")            
@@ -305,7 +315,6 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         "Ai_response": response,  
         "Response_tokens": response_token_count,  
         "Completion_price": completion_cost, 
-        "Search_score": search_score,
         "Time_answered": time_answered,  
         "Ai_model_deployment": deployment_model,  
         "Ai_model_version": version_model,
@@ -320,7 +329,7 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         return f"An error occurred: {e.message}"
   
 def main(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, name_model, version_model, deployment_model, prompt_token_count, 
-         response_token_count, project, api_name, database, search_score):  
+         response_token_count, project, api_name, database):  
     if database == "mysqldb":
         return sql_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, response=response, 
                             completion_cost=completion_cost, name_model=name_model, version_model=version_model, deployment_model=deployment_model, 
@@ -328,7 +337,7 @@ def main(system_prompt, user_prompt, time_asked, prompt_cost, response, completi
     elif database == "cosmosdb":
         return cosmosdb_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, 
                                 response=response, completion_cost=completion_cost, deployment_model=deployment_model, prompt_token_count=prompt_token_count, 
-                                response_token_count=response_token_count, project=project, api_name=api_name, version_model=version_model, search_score=search_score)
+                                response_token_count=response_token_count, project=project, api_name=api_name, version_model=version_model)
     else:
         return "Database must be mysqldb or cosmosdb. Please specifiy one these values."
  
@@ -339,17 +348,19 @@ async def process_data(request: Request):
     response_data = await request.body()  
     response_text = response_data.decode('utf-8')  # Decode bytes to string  
     response_text = json.loads(response_text)
-    prompt_tokens = response_text['usage']['prompt_tokens']  
-    headers = request.headers
-    system_prompt = headers.get('system_prompt', 'Header not found')  
-    user_prompt = headers.get('user_prompt', 'Header not found')  
+    # Extract and parse requestBody
+    request_body = json.loads(response_text['requestBody'])  
+    print(request_body)
+    # Extract and parse responseBody  
+    response_body = json.loads(response_text['responseBody']) 
+    print(response_body) 
+    headers = request.headers 
     time_asked = headers.get('time_asked', 'Header not found')
     deployment_model = headers.get('deployment_model', 'Header not found')    
     name_model = headers.get('name_model', 'Header not found')  
     version_model = headers.get('version_model', 'Header not found') 
     region = headers.get('region', 'Header not found')  
     project = headers.get('project', 'Header not found') 
-    print(f"\n\n{project}\n\n")
     database = headers.get('database', 'Header not found') 
     retrieve =  headers.get('retrieve', 'Header not found') 
     if retrieve == "False":
@@ -359,16 +370,30 @@ async def process_data(request: Request):
     url = str(request.url)
 
     if project == "Disney Character (API Test)":
-        ai_response = response_text['choices'][0]['message']["content"]
-        rag_search_score = ""
-    # if data.project == "Retriever (API Test)":
-    #     data.system_prompt, rag_search_score, data.response = parse_retriever_response(response=data.response, system_prompt=data.system_prompt)
-    if project == "Embeddings Index (API Test)":
-        ai_response = response_text['data'][0]['embedding']
-        rag_search_score = ""
-        prompt_tokens = response_text['usage']['prompt_tokens'] 
+        ai_response = response_body['choices'][0]['message']["content"]
+        user_prompt = request_body['messages'][1]['content']
+        system_prompt = request_body['messages'][0]['content']
+        prompt_tokens = response_body['usage']['prompt_tokens']  
+        response_tokens =  response_body['usage']['completion_tokens'] 
+    elif project == "Embeddings Index (API Test)":
+        ai_response = response_body['data'][0]['embedding']
+        system_prompt = headers.get('system_prompt', 'Header not found')  
+        user_prompt = headers.get('user_prompt', 'Header not found')  
+        prompt_tokens = response_body['usage']['prompt_tokens'] 
+        response_tokens = 0
+    elif project == "Retriever (API Test)":  
+        ai_response = response_body['choices'][0]['message']["content"]
+        # Determine the total number of messages  
+        num_messages = len(request_body['messages'])  
+        # if num_messages >= 2:  
+        #     user_prompt = request_body['messages'][num_messages - 1]['content']  
+        user_prompt = headers.get('user_prompt', 'Header not found') 
+        system_prompt = request_body['messages'][0]['content']  
+        prompt_tokens = response_body['usage']['prompt_tokens']  
+        response_tokens =  response_body['usage']['completion_tokens']  
+    else:
+        "Project not found."
 
-    print(ai_response)
     prompt_token_count, prompt_cost, response_token_count, completion_cost = aoai_metadata(  
         system_prompt=system_prompt,  
         user_prompt=user_prompt,  
@@ -378,7 +403,8 @@ async def process_data(request: Request):
         region=region, 
         retrieve=retrieve,  
         project=project, 
-        prompt_tokens=prompt_tokens
+        prompt_tokens=prompt_tokens, 
+        res_tokens=response_tokens
     )  
 
     result = main(  
@@ -395,8 +421,7 @@ async def process_data(request: Request):
         response_token_count=response_token_count,  
         project=project,  
         api_name=url,  
-        database=database,
-        search_score=rag_search_score
+        database=database
     )  
   
     return result  
