@@ -2,7 +2,7 @@
   
 ## Overview  
 `apim_api` is designed to capture metadata from an Azure API Management (APIM) policy, which manages the Azure OpenAI API call. The APIM policy calls the api to store metadata in a MySQL or Cosmos database. The metadata captured includes prompts (system & user), tokens, completions, models, costs, and projects. This metadata is not limited and can be adjusted to capture more metadata based on needs. In the MySQL database, data is organized using a relational schema, ensuring efficient storage and retrieval at the project level. Conversely, in the Cosmos DB, data is stored in JSON format, allowing for flexible data types and eliminating the need for a rigid relational schema.
-***Note: ONLY FOR Azure OpenAI Solutions that include regular chat***. 
+***Note: ONLY FOR Azure OpenAI Solutions that include regular chat and RAG methods***. 
 
 For the APIM Policy to execute this API, please navigate to `./APIM/policy.txt` (copy the content into APIM)
   
@@ -28,16 +28,8 @@ Note: All tester scripts located in `/api_testers`
 3. `call_apim_query.py`: Designed to test the apim_api using eligible GPT and ADA models, specifically for RAG scenarios, where embeddings for queries are generated and documents are retrieved from a vector store.
 
 To use the each of the tester python file, complete the following:  
-1. **Set .env variables for your AOAI instance**  
+1. **Set the minimum .env variables to execute the api (ngrok_authtoken not needed if running in Azure)**
 ```sh  
-    OPENAI_API_BASE = "AOAI Endpoint"  
-    OPENAI_API_VERSION = "AOAI API Version"  
-    OPENAI_API_KEY = "AOAI API Key"  
-    OPENAI_GPT_MODEL = "AOAI GPT Model deployment name" 
-    OPENAI_ADA_MODEL = "AOAI ADA Model deployment name" 
-    AZURE_AI_SEARCH_URL = "Azure AI Search endpoint"
-    AZURE_AI_SEARCH_KEY = "Azure AI Search key"
-    AZURE_AI_SEARCH_INDEX = 'Azure AI Search index name'
     azure_mysql_password = "MySQL server admin password"  
     azure_mysql_host = "MySQL server host"  
     azure_mysql_user = "MySQL admin user"  

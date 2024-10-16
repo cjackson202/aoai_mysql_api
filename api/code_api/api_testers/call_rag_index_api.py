@@ -2,7 +2,7 @@
 This script is designed to test the MySQL API using eligible ADA models specifically 
 for indexing scenarios, where embeddings for documents are generated.
 
-Updated 9/23/24
+Updated 10/15/24
 '''
 
 import os  
@@ -50,20 +50,26 @@ text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
 docs = text_splitter.split_documents(documents)  
 for doc in docs:
     source_content_pairs.append((doc.metadata['source'], doc.page_content))  
-vector_store.add_documents(documents=docs)  
+vectorize = vector_store.add_documents(documents=docs)  
+formatted_strings = []  
+for count, item in enumerate(vectorize, start=1):  
+    formatted_strings.append(f'{item}\ndoc: {count}\n\n')  
+embedding_content_string = '\n\n'.join(formatted_strings)
+
 time_asked = get_time()  # Make sure time is captured right after adding docs to vector store
 for source, content in source_content_pairs:  
     page_content_string += content + "\nSource: " + source + "\n\n"   
 document_text = page_content_string.strip()
 
-
+# print(document_text)
 # Call MySQL API to capture metadata (make sure api is running locally)
-url = "http://127.0.0.1:8000/code_api"  
+url = "https://code-api.azurewebsites.net/code_api"  
 
 # The following data must be sent as payload with each API request.
 data = {  
     "user_prompt": document_text,  # The page_content found in chunks from file. 
     "time_asked": time_asked, # Time in which the user prompt was asked.
+    "response": embedding_content_string, # The embedding representations returned from line 53
     "deployment_model": ada_model, # Input your **ADA** model's deployment name here.
     "name_model": "text-embedding-ada-002",  # Input you **ADA** model here.
     "version_model": "2",  # Input your model version here. NOT API VERSION.

@@ -90,20 +90,24 @@ while True:
     # Initialize object that holds sources in the returned dictionary
     sources = [] 
     page_contents = []
-    print(chain)
+    search_scores = []
     for doc in chain['context']:
         source = doc.metadata['metadata']
         page_content = doc.page_content
+        search_score = doc.metadata['@search.score']
+        print(type(search_score))
         sources.append(source)
         page_contents.append(page_content)
+        search_scores.append(search_score)
     # Print out LLM answer and sources. 
     print(f"\nAnswer: {chain['answer']}")
     source = "".join(sources)
     print(f"\nSource: {source}\n\n")
     page_content = "".join(page_contents) 
+    search_score = search_scores[0]
     system_prompt = qa_system_prompt.replace("{context}", page_content)
     # Call MySQL API to capture metadata (make sure api is running locally)
-    url = "http://127.0.0.1:8000/code_api"  
+    url = "https://code-api.azurewebsites.net/code_api"  
     
     # The following data must be sent as payload with each API request.
     data = {  
@@ -111,6 +115,7 @@ while True:
         "user_prompt": query,  # User prompt in which the end-user asks the model. 
         "time_asked": time_asked, # Time in which the user prompt was asked.
         "response": chain['answer'],  # Model's answer to the user prompt
+        "search_score": search_score, # Score for retrieved docs
         "deployment_model": f'{gpt_model}, {ada_model}', # Input your model deployment names here
         "name_model": "gpt-4o, text-embedding-ada-002",  # Input your models here
         "version_model": "2024-05-13, 2",  # Input your model version here. NOT API VERSION.
@@ -118,7 +123,7 @@ while True:
         "project": "Retriever (API Test)",  # Input your project name here. Following the system prompt for this test currently :)
         "api_name": url, # Input the url of the API used. 
         "retrieve": True, # Set to True, indicating you are utilizing RAG.
-        "database": "cosmosdb" # Set to cosmosdb or mysqldb depending on desired platform
+        "database": "mysqldb" # Set to cosmosdb or mysqldb depending on desired platform
     }  
     
     response = requests.post(url, headers={"Content-Type": "application/json"}, data=json.dumps(data))  

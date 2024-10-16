@@ -46,7 +46,7 @@ while True:
 
 
     # Call MySQL API to capture metadata (make sure api is running locally)
-    url = "http://127.0.0.1:8000/code_api"  
+    url = "https://code-api.azurewebsites.net/code_api"  
     
     # The following data must be sent as payload with each API request.
     data = {  

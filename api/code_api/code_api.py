@@ -1,11 +1,12 @@
 '''
 UPDATES:
-    - Added Cosmos DB as an option to API. (to test, execute a script in /api_testers specifying the type in database param)
-    - Changed API name to code_api (see updated run command)
+    - Added if checks for Embeddings Index (API Test) project (lines 234 and 273) to explicity set response tokens to 0
+    - Modified the requested user prompt for Embeddings Index (API Test) ONLY to remove sources in string for token and cost processing
+        - Caused inconsistencies in token count for user prompt 
 
 To run this api locally use: uvicorn code_api:app --reload
 
-Last update: 9/23/2024
+Last update: 10/15/2024
 '''
 
 from fastapi import FastAPI, HTTPException  
@@ -27,6 +28,7 @@ class RequestData(BaseModel):
     user_prompt: str  = Field(default="")  
     time_asked: str  = Field(default="")  
     response: str  = Field(default="")  
+    search_score: float = Field(default=None)
     deployment_model: str = Field(default="")  
     name_model: str = Field(default="")  
     version_model: str = Field(default="")    
@@ -106,7 +108,7 @@ def aoai_metadata(system_prompt, user_prompt, response, name_model, version_mode
             raise HTTPException(status_code=400, detail="East US & East US 2 regions only available.")  
 
 # function for inserting data to MySQL database 
-def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, name_model, version_model, 
+def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, search_score, completion_cost, name_model, version_model, 
                 deployment_model, prompt_token_count, response_token_count, project, api_name):  
     try:  
         # Establish a connection to the MySQL server  
@@ -232,8 +234,10 @@ def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, c
                 model_id = mycursor.lastrowid  
   
         # Insert into chat_completions table based on model used  
-        sql = "INSERT INTO chat_completions (model_id, prompt_id, api_id, chat_completion, tokens, price) VALUES (%s, %s, %s, %s, %s, %s)"  
-        val = (model_id, prompt_id, api_id, response, response_token_count, completion_cost)  
+        if project == "Embeddings Index (API Test)":    # Indexing project will have zero response token count, as tokens are only handled in prompt. 
+            response_token_count = 0
+        sql = "INSERT INTO chat_completions (model_id, prompt_id, api_id, chat_completion, tokens, price, search_score) VALUES (%s, %s, %s, %s, %s, %s, %s)"  
+        val = (model_id, prompt_id, api_id, response, response_token_count, completion_cost, search_score)  
         mycursor.execute(sql, val)  
   
         # Save the changes  
@@ -243,7 +247,7 @@ def sql_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, c
         raise HTTPException(status_code=500, detail=f"Failed to access MySQL DB with error: {e}")  
 
 # function for inserting into cosmos database 
-def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, 
+def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, response, search_score, completion_cost, 
                 deployment_model, prompt_token_count, response_token_count, project, api_name, version_model):
     # Initialize Cosmos env variables 
     endpoint = os.getenv("azure_cosmosdb_endpoint")  
@@ -268,6 +272,9 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         return formatted_time 
     
     time_asked = get_time()
+
+    if project == "Embeddings Index (API Test)":  # Indexing project will have zero response token count, as tokens are only handled in prompt. 
+            response_token_count = 0
 
     # Initialize the Cosmos client 
     client = CosmosClient(endpoint, key)  
@@ -305,7 +312,8 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
         "Prompt_tokens": prompt_token_count,  
         "Prompt_price": prompt_cost,
         "Time_asked": time_asked,  
-        "Ai_response": response,  
+        "Ai_response": response, 
+        "Search_score": search_score, 
         "Response_tokens": response_token_count,  
         "Completion_price": completion_cost,  
         "Time_answered": time_asked,  
@@ -321,15 +329,15 @@ def cosmosdb_connect(system_prompt, user_prompt, time_asked, prompt_cost, respon
     except exceptions.CosmosHttpResponseError as e:  
         return f"An error occurred: {e.message}"
   
-def main(system_prompt, user_prompt, time_asked, prompt_cost, response, completion_cost, name_model, version_model, deployment_model, prompt_token_count, 
+def main(system_prompt, user_prompt, time_asked, prompt_cost, response, search_score, completion_cost, name_model, version_model, deployment_model, prompt_token_count, 
          response_token_count, project, api_name, database):  
     if database == "mysqldb":
-        return sql_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, response=response, 
+        return sql_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, response=response, search_score=search_score,
                             completion_cost=completion_cost, name_model=name_model, version_model=version_model, deployment_model=deployment_model, 
                             prompt_token_count=prompt_token_count, response_token_count=response_token_count, project=project, api_name=api_name) 
     elif database == "cosmosdb":
         return cosmosdb_connect(system_prompt=system_prompt, user_prompt=user_prompt, time_asked=time_asked, prompt_cost=prompt_cost, 
-                                response=response, completion_cost=completion_cost, deployment_model=deployment_model, prompt_token_count=prompt_token_count, 
+                                response=response, search_score=search_score, completion_cost=completion_cost, deployment_model=deployment_model, prompt_token_count=prompt_token_count, 
                                 response_token_count=response_token_count, project=project, api_name=api_name, version_model=version_model)
     else:
         return "Database must be mysqldb or cosmosdb. Please specifiy one these values."
@@ -337,22 +345,37 @@ def main(system_prompt, user_prompt, time_asked, prompt_cost, response, completi
   
 @app.post("/code_api")  
 def process_data(data: RequestData):  
-    prompt_token_count, prompt_cost, response_token_count, completion_cost = aoai_metadata(  
-    system_prompt=data.system_prompt,  
-    user_prompt=data.user_prompt,  
-    response=data.response,  
-    name_model=data.name_model,  
-    version_model=data.version_model,  
-    region=data.region, 
-    retrieve=data.retrieve,  
-    )  
+    if data.project == "Embeddings Index (API Test)":  
+        pattern = r'Source: [^\s]*(?:\\[^\\\s]*)*\.[a-zA-Z0-9]+'  
+        filtered_user_prompt = re.sub(pattern, '', data.user_prompt)  
+
+        prompt_token_count, prompt_cost, response_token_count, completion_cost = aoai_metadata(  
+        system_prompt=data.system_prompt,  
+        user_prompt=filtered_user_prompt,  
+        response=data.response,  
+        name_model=data.name_model,  
+        version_model=data.version_model,  
+        region=data.region, 
+        retrieve=data.retrieve,  
+        )  
+    else:
+        prompt_token_count, prompt_cost, response_token_count, completion_cost = aoai_metadata(  
+        system_prompt=data.system_prompt,  
+        user_prompt=data.user_prompt,  
+        response=data.response,  
+        name_model=data.name_model,  
+        version_model=data.version_model,  
+        region=data.region, 
+        retrieve=data.retrieve,  
+        )  
   
     result = main(  
         system_prompt=data.system_prompt,  
         user_prompt=data.user_prompt,  
         time_asked=data.time_asked,  
         prompt_cost=prompt_cost,  
-        response=data.response,  
+        response=data.response, 
+        search_score=data.search_score, 
         completion_cost=completion_cost,
         name_model=data.name_model,
         version_model=data.version_model,  

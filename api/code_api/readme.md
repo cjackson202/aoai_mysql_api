@@ -26,16 +26,8 @@ for indexing scenarios, where embeddings for documents are generated.
 3. `call_rag_query_api.py`: Designed to test the code_api using eligible GPT and ADA models, specifically for RAG scenarios, where embeddings for queries are generated and documents are retrieved from a vector store.
     
     To use the each of the tester python file, complete the following:  
-    1. **Set .env variables for your AOAI instance**  
+    1. **Set minimum .env variables to execute the api**  
 ```sh  
-    OPENAI_API_BASE = "AOAI Endpoint"  
-    OPENAI_API_VERSION = "AOAI API Version"  
-    OPENAI_API_KEY = "AOAI API Key"  
-    OPENAI_GPT_MODEL = "AOAI GPT Model deployment name" 
-    OPENAI_ADA_MODEL = "AOAI ADA Model deployment name" 
-    AZURE_AI_SEARCH_URL = "Azure AI Search endpoint"
-    AZURE_AI_SEARCH_KEY = "Azure AI Search key"
-    AZURE_AI_SEARCH_INDEX = 'Azure AI Search index name'
     azure_mysql_password = "MySQL server admin password"  
     azure_mysql_host = "MySQL server host"  
     azure_mysql_user = "MySQL admin user"  
@@ -56,6 +48,7 @@ Note: If you build the API from the docker file provided, you must switch to run
     docker run -p 8000:80 --env-file ./docker_env/.env code_api:v1  
 ```  
 Docker build command **code_api**: `docker build -f api/code_api/Dockerfile -t code_api:v1 .` 
+
 4. **Run the python script from the terminal:**  
 ```sh  
     python call_norag_api.py  
@@ -71,6 +64,8 @@ Note - The following data should be passed as payload to the API:
             "time_asked": "", # Time in which the user prompt was asked.
 
             "response": "",  # Model's answer to the user prompt
+
+            "search_score": None, # Search score returned from retrieved docs in Azure AI Search index
 
             "deployment_model": "", # Model's deployment name here
 

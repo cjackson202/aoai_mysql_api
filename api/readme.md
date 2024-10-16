@@ -40,7 +40,19 @@ This README provides a comparison between `apim_api` and `code_api`, helping you
 | Complexity of Implementation    | Higher                             | Lower                              |  
 | Frequency of Deployment         | Frequent updates acceptable        | Stable, less frequent updates      |  
 | Use Case                        | High customization and complexity  | Stability and streamlined approach |  
-  
+
+## Environment setup 
+At a minimum, set the following .env variables to execute ***/api_testers*** for both api's:
+```sh  
+    OPENAI_API_BASE = "AOAI Endpoint"  
+    OPENAI_API_VERSION = "AOAI API Version"  
+    OPENAI_API_KEY = "AOAI API Key"  
+    OPENAI_GPT_MODEL = "AOAI GPT Model deployment name" 
+    OPENAI_ADA_MODEL = "AOAI ADA Model deployment name" 
+    AZURE_AI_SEARCH_URL = "Azure AI Search endpoint"
+    AZURE_AI_SEARCH_KEY = "Azure AI Search key"
+    AZURE_AI_SEARCH_INDEX = 'Azure AI Search index name'
+```  
 ## Conclusion  
   
 By considering the factors listed above, you can determine whether `code_api` or `apim_api` is the best fit for your project.   
